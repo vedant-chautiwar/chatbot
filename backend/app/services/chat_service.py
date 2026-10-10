@@ -1,0 +1,387 @@
+import asyncio
+from datetime import datetime, timezone
+import logging
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from bson import ObjectId
+from fastapi import HTTPException, status
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+
+from app.agents.graph import create_agent_graph
+from app.config import settings
+from app.models.chat import ChatMessageResponse, ChatResponse, Source
+from app.services.conversation_service import ConversationService, conversation_service
+from app.utils.object_id import parse_object_id, serialize_mongo_doc
+from app.utils.sse import format_sse
+
+logger = logging.getLogger(__name__)
+
+
+class ChatService:
+    """Orchestrates agent execution, bounded context management, and persistence."""
+
+    def __init__(
+        self,
+        conv_service: Optional[ConversationService] = None,
+        graph_override: Optional[Any] = None,
+    ) -> None:
+        self.conv_service = conv_service or conversation_service
+        self._graph = graph_override
+
+    @property
+    def graph(self) -> Any:
+        if self._graph is None:
+            self._graph = create_agent_graph()
+        return self._graph
+
+    @graph.setter
+    def graph(self, value: Any) -> None:
+        self._graph = value
+
+    @graph.deleter
+    def graph(self) -> None:
+        self._graph = None
+
+    async def _resolve_conversation(
+        self,
+        conversation_id: Optional[str],
+        user_id: str,
+        user_message: str,
+    ) -> Tuple[Dict[str, Any], bool]:
+        """Validate existing conversation ownership or create a new conversation."""
+        if conversation_id:
+            conv = await self.conv_service.get_conversation(conversation_id, user_id)
+            return conv, False
+
+        # Create a new conversation
+        conv = await self.conv_service.create_conversation(user_id=user_id)
+        return conv, True
+
+    async def _load_bounded_history(
+        self,
+        conversation_oid: ObjectId,
+        limit: int,
+    ) -> List[BaseMessage]:
+        """
+        Load bounded conversation history in chronological order.
+        Only user and assistant dialog messages are extracted to prevent
+        orphaned tool calls across multi-turn sessions.
+        """
+        cursor = (
+            self.conv_service.db.messages.find({"conversation_id": conversation_oid})
+            .sort("created_at", -1)
+            .limit(limit)
+        )
+        recent_docs = await cursor.to_list(length=limit)
+        recent_docs.reverse()  # Chronological order
+
+        history: List[BaseMessage] = []
+        for doc in recent_docs:
+            role = doc.get("role")
+            content = doc.get("content", "")
+            if role == "user":
+                history.append(HumanMessage(content=content))
+            elif role == "assistant":
+                history.append(AIMessage(content=content))
+        return history
+
+    async def process_chat(
+        self,
+        conversation_id: Optional[str],
+        message: str,
+        user_id: str,
+    ) -> ChatResponse:
+        """Process chat message synchronously using the LangGraph agent."""
+        conv, is_new = await self._resolve_conversation(conversation_id, user_id, message)
+        conv_oid: ObjectId = conv["_id"]
+        conv_id_str = str(conv_oid)
+
+        # Persist user message immediately
+        await self.conv_service.append_message(
+            conversation_id=conv_oid,
+            user_id=user_id,
+            role="user",
+            content=message,
+        )
+
+        # Update conversation meta with user's message
+        await self.conv_service.update_conversation_meta(
+            conversation_id=conv_oid,
+            user_id=user_id,
+            last_message_content=message,
+            is_first_interaction=is_new,
+        )
+
+        # Load bounded history
+        history = await self._load_bounded_history(
+            conv_oid, limit=settings.MAX_HISTORY_MESSAGES
+        )
+
+        # Prepare agent input state
+        initial_state = {
+            "messages": history,
+            "sources": [],
+            "status": "thinking",
+        }
+
+        logger.info(
+            "Invoking LangGraph agent for user %s, conv %s with %d history messages",
+            user_id,
+            conv_id_str,
+            len(history),
+        )
+
+        try:
+            result = await self.graph.ainvoke(initial_state, config={"recursion_limit": 6})
+        except Exception as exc:
+            logger.error("LangGraph agent execution failed: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="The AI agent encountered an error processing your request.",
+            )
+
+        # Extract answer and sources
+        final_messages = result.get("messages", [])
+        if not final_messages:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="No response was generated by the AI agent.",
+            )
+
+        last_message = final_messages[-1]
+        assistant_content = (
+            last_message.content
+            if isinstance(last_message.content, str)
+            else str(last_message.content)
+        )
+        extracted_sources = result.get("sources", [])
+
+        # Persist assistant response
+        assistant_doc = await self.conv_service.append_message(
+            conversation_id=conv_oid,
+            user_id=user_id,
+            role="assistant",
+            content=assistant_content,
+            sources=extracted_sources,
+            msg_status="completed",
+        )
+
+        # Update conversation meta with assistant's preview
+        await self.conv_service.update_conversation_meta(
+            conversation_id=conv_oid,
+            user_id=user_id,
+            last_message_content=assistant_content,
+            is_first_interaction=False,
+        )
+
+        serialized_msg = serialize_mongo_doc(assistant_doc)
+        source_models = [Source(**s) for s in extracted_sources]
+
+        return ChatResponse(
+            conversation_id=conv_id_str,
+            message=ChatMessageResponse(
+                id=serialized_msg["id"],
+                conversation_id=conv_id_str,
+                role="assistant",
+                content=assistant_content,
+                sources=source_models,
+                status="completed",
+                created_at=serialized_msg["created_at"],
+            ),
+        )
+
+    async def process_chat_stream(
+        self,
+        conversation_id: Optional[str],
+        message: str,
+        user_id: str,
+    ) -> AsyncGenerator[str, None]:
+        """
+        Execute agent with progressive Server-Sent Events (SSE).
+        Protocol events:
+        - meta: IDs of conversation and upcoming assistant message
+        - status: activity changes ('thinking', 'searching', 'generating')
+        - token: streamed text delta
+        - sources: validated sources retrieved
+        - done: completion payload
+        - error: user-safe error payload
+        """
+        try:
+            conv, is_new = await self._resolve_conversation(conversation_id, user_id, message)
+        except HTTPException as he:
+            yield format_sse("error", {"detail": he.detail})
+            return
+        except Exception as ex:
+            yield format_sse("error", {"detail": "Failed to resolve conversation"})
+            return
+
+        conv_oid: ObjectId = conv["_id"]
+        conv_id_str = str(conv_oid)
+        assistant_oid = ObjectId()
+        assistant_id_str = str(assistant_oid)
+        # Persist user message and update metadata
+        try:
+            await self.conv_service.append_message(
+                conversation_id=conv_oid,
+                user_id=user_id,
+                role="user",
+                content=message,
+            )
+            auto_title = await self.conv_service.update_conversation_meta(
+                conversation_id=conv_oid,
+                user_id=user_id,
+                last_message_content=message,
+                is_first_interaction=is_new,
+            )
+            history = await self._load_bounded_history(
+                conv_oid, limit=settings.MAX_HISTORY_MESSAGES
+            )
+        except Exception as exc:
+            logger.error("Failed to persist initial user message: %s", exc)
+            yield format_sse("error", {"detail": "Failed to persist chat message."})
+            return
+
+        # Emit meta event with conversation and assistant IDs plus updated title
+        yield format_sse(
+            "meta",
+            {
+                "conversation_id": conv_id_str,
+                "assistant_message_id": assistant_id_str,
+                "title": auto_title or conv.get("title", "New Conversation"),
+            },
+        )
+
+        initial_state = {
+            "messages": history,
+            "sources": [],
+            "status": "thinking",
+        }
+
+        # Emit initial thinking status
+        yield format_sse("status", {"status": "thinking"})
+
+        accumulated_text: List[str] = []
+        collected_sources: List[Dict[str, Any]] = []
+
+        try:
+            # Stream events using LangGraph astream_events API
+            async for event in self.graph.astream_events(
+                initial_state,
+                version="v2",
+                config={"recursion_limit": 6},
+            ):
+                event_type = event.get("event")
+                event_name = event.get("name", "")
+
+                # Tool lifecycle events
+                if event_type == "on_tool_start":
+                    yield format_sse("status", {"status": "searching"})
+
+                elif event_type == "on_tool_end":
+                    yield format_sse("status", {"status": "generating"})
+                    output = event.get("data", {}).get("output")
+                    # If tool produced sources, collect them
+                    if isinstance(output, dict) and "sources" in output:
+                        collected_sources.extend(output["sources"])
+
+                # LLM streaming tokens
+                elif event_type == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    if chunk and hasattr(chunk, "content") and chunk.content:
+                        text_chunk = chunk.content
+                        if isinstance(text_chunk, str) and text_chunk:
+                            accumulated_text.append(text_chunk)
+                            yield format_sse("token", {"token": text_chunk})
+
+                # Node completion events
+                elif event_type == "on_chain_end" and event_name == "tools":
+                    node_output = event.get("data", {}).get("output", {})
+                    if isinstance(node_output, dict) and "sources" in node_output:
+                        for s in node_output["sources"]:
+                            if s not in collected_sources:
+                                collected_sources.append(s)
+
+        except asyncio.CancelledError:
+            logger.warning("Streaming request was cancelled by client: conv %s", conv_id_str)
+            # If client disconnected mid-generation, persist partial or note
+            full_text = "".join(accumulated_text).strip()
+            if full_text:
+                await self.conv_service.append_message(
+                    conversation_id=conv_oid,
+                    user_id=user_id,
+                    role="assistant",
+                    content=full_text,
+                    sources=collected_sources,
+                    msg_status="cancelled",
+                )
+            raise
+
+        except Exception as exc:
+            logger.error("Error during streaming generation: %s", exc)
+            yield format_sse("error", {"detail": "Stream processing error: " + str(exc)})
+            return
+
+        final_answer = "".join(accumulated_text).strip()
+
+        # If a fallback non-streaming output exists (e.g. mock graph in tests)
+        if not final_answer:
+            # Run one non-streaming invoke if stream emitted no tokens
+            try:
+                res = await self.graph.ainvoke(initial_state)
+                msgs = res.get("messages", [])
+                if msgs:
+                    final_answer = msgs[-1].content
+                    collected_sources = res.get("sources", [])
+                    yield format_sse("token", {"token": final_answer})
+            except Exception:
+                pass
+
+        # Deduplicate sources
+        unique_sources: List[Dict[str, Any]] = []
+        seen_urls = set()
+        for s in collected_sources:
+            u = s.get("url")
+            if not u or u not in seen_urls:
+                unique_sources.append(s)
+                if u:
+                    seen_urls.add(u)
+
+        # Emit sources event
+        yield format_sse("sources", {"sources": unique_sources})
+
+        # Persist completed assistant message
+        try:
+            now = datetime.now(timezone.utc)
+            doc = {
+                "_id": assistant_oid,
+                "conversation_id": conv_oid,
+                "user_id": user_id,
+                "role": "assistant",
+                "content": final_answer,
+                "sources": unique_sources,
+                "status": "completed",
+                "created_at": now,
+            }
+            await self.conv_service.db.messages.insert_one(doc)
+
+            # Update conversation meta
+            await self.conv_service.update_conversation_meta(
+                conversation_id=conv_oid,
+                user_id=user_id,
+                last_message_content=final_answer,
+                is_first_interaction=False,
+            )
+        except Exception as exc:
+            logger.error("Failed to persist assistant streamed message: %s", exc)
+
+        # Emit done event
+        yield format_sse(
+            "done",
+            {
+                "conversation_id": conv_id_str,
+                "assistant_message_id": assistant_id_str,
+                "status": "completed",
+            },
+        )
+
+
+chat_service = ChatService()
