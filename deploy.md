@@ -1,10 +1,10 @@
 # 🚀 Deployment Guide — Chatbot
 
-| Layer | Platform | URL (after deploy) |
-|-------|----------|--------------------|
-| **Backend** | [Render](https://render.com) | `https://chatbot-api-xxxx.onrender.com` |
-| **Frontend** | [Vercel](https://vercel.com) | `https://chatbot-xxxx.vercel.app` |
-| **Database** | [MongoDB Atlas](https://cloud.mongodb.com) | Cloud-hosted |
+| Layer        | Platform                                   | URL (after deploy)                      |
+| ------------ | ------------------------------------------ | --------------------------------------- |
+| **Backend**  | [Render](https://render.com)               | `https://chatbot-api-xxxx.onrender.com` |
+| **Frontend** | [Vercel](https://vercel.com)               | `https://chatbot-xxxx.vercel.app`       |
+| **Database** | [MongoDB Atlas](https://cloud.mongodb.com) | Cloud-hosted                            |
 
 ---
 
@@ -17,11 +17,11 @@ Complete these steps **before** touching Render or Vercel.
 You must switch from `localhost` to a cloud database.
 
 1. Go to [https://cloud.mongodb.com](https://cloud.mongodb.com) → **Create a free M0 cluster**
-2. Create a **Database User**: Database Access → Add New User  
-   - Username: `chatbot-user`  
-   - Password: generate a strong one (save it)  
+2. Create a **Database User**: Database Access → Add New User
+   - Username: `chatbot-user`
+   - Password: generate a strong one (save it)
    - Role: **Read and write to any database**
-3. Whitelist all IPs: Network Access → Add IP Address → `0.0.0.0/0` *(allows Render)*
+3. Whitelist all IPs: Network Access → Add IP Address → `0.0.0.0/0` _(allows Render)_
 4. Get connection string: Clusters → Connect → **Drivers**
    ```
    mongodb+srv://chatbot-user:<password>@cluster0.xxxxx.mongodb.net/chatbot_db?retryWrites=true&w=majority
@@ -32,7 +32,7 @@ You must switch from `localhost` to a cloud database.
 
 ### 2. Backend — Files to Add
 
-#### a) `backend/render.yaml` *(optional but recommended)*
+#### a) `backend/render.yaml` _(optional but recommended)_
 
 Create this file to auto-configure Render:
 
@@ -69,7 +69,7 @@ services:
         value: "10"
 ```
 
-#### b) `backend/runtime.txt` *(tells Render which Python version)*
+#### b) `backend/runtime.txt` _(tells Render which Python version)_
 
 ```
 3.11.9
@@ -79,13 +79,11 @@ services:
 
 ### 3. Frontend — Files to Add
 
-#### a) `frontend/vercel.json` *(handles SPA routing — required)*
+#### a) `frontend/vercel.json` _(handles SPA routing — required)_
 
 ```json
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
 ```
 
@@ -101,32 +99,32 @@ services:
 2. Connect your GitHub account → select **vedant-chautiwar/chatbot**
 3. Configure:
 
-| Setting | Value |
-|---------|-------|
-| **Name** | `chatbot-api` |
-| **Root Directory** | `backend` |
-| **Runtime** | `Python 3` |
-| **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| **Instance Type** | `Free` |
+| Setting            | Value                                              |
+| ------------------ | -------------------------------------------------- |
+| **Name**           | `chatbot-api`                                      |
+| **Root Directory** | `backend`                                          |
+| **Runtime**        | `Python 3`                                         |
+| **Build Command**  | `pip install -r requirements.txt`                  |
+| **Start Command**  | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| **Instance Type**  | `Free`                                             |
 
 ### Step 2 — Add Environment Variables
 
 In Render → your service → **Environment** tab, add all of these:
 
-| Key | Value |
-|-----|-------|
-| `ENVIRONMENT` | `production` |
-| `GROQ_API_KEY` | `your-groq-api-key` *(from your .env)* |
-| `GROQ_MODEL` | `openai/gpt-oss-120b` |
-| `TAVILY_API_KEY` | `your-tavily-api-key` *(from your .env)* |
-| `MONGODB_URI` | `mongodb+srv://chatbot-user:<pw>@cluster0.xxx.mongodb.net/chatbot_db?retryWrites=true&w=majority` |
-| `MONGODB_DATABASE` | `chatbot_db` |
-| `JWT_SECRET` | `your-jwt-secret` *(from your .env — keep this private)* |
-| `JWT_ALGORITHM` | `HS256` |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` |
-| `FRONTEND_ORIGIN` | `https://your-frontend.vercel.app` *(update after Vercel deploy)* |
-| `MAX_HISTORY_MESSAGES` | `10` |
+| Key                               | Value                                                                                             |
+| --------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `ENVIRONMENT`                     | `production`                                                                                      |
+| `GROQ_API_KEY`                    | `your-groq-api-key` _(from your .env)_                                                            |
+| `GROQ_MODEL`                      | `openai/gpt-oss-120b`                                                                             |
+| `TAVILY_API_KEY`                  | `your-tavily-api-key` _(from your .env)_                                                          |
+| `MONGODB_URI`                     | `mongodb+srv://chatbot-user:<pw>@cluster0.xxx.mongodb.net/chatbot_db?retryWrites=true&w=majority` |
+| `MONGODB_DATABASE`                | `chatbot_db`                                                                                      |
+| `JWT_SECRET`                      | `your-jwt-secret` _(from your .env — keep this private)_                                          |
+| `JWT_ALGORITHM`                   | `HS256`                                                                                           |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `1440`                                                                                            |
+| `FRONTEND_ORIGIN`                 | `https://your-frontend.vercel.app` _(update after Vercel deploy)_                                 |
+| `MAX_HISTORY_MESSAGES`            | `10`                                                                                              |
 
 ### Step 3 — Deploy & Verify
 
@@ -148,20 +146,20 @@ In Render → your service → **Environment** tab, add all of these:
 2. Import from GitHub → select **vedant-chautiwar/chatbot**
 3. Configure:
 
-| Setting | Value |
-|---------|-------|
-| **Framework Preset** | `Vite` |
-| **Root Directory** | `frontend` |
-| **Build Command** | `npm run build` |
-| **Output Directory** | `dist` |
-| **Install Command** | `npm install` |
+| Setting              | Value           |
+| -------------------- | --------------- |
+| **Framework Preset** | `Vite`          |
+| **Root Directory**   | `frontend`      |
+| **Build Command**    | `npm run build` |
+| **Output Directory** | `dist`          |
+| **Install Command**  | `npm install`   |
 
 ### Step 2 — Add Environment Variables
 
 In the **Environment Variables** section on Vercel, add:
 
-| Key | Value |
-|-----|-------|
+| Key                 | Value                                       |
+| ------------------- | ------------------------------------------- |
 | `VITE_API_BASE_URL` | `https://chatbot-api-xxxx.onrender.com/api` |
 
 > ⚠️ Replace `chatbot-api-xxxx` with your actual Render service URL from Part 1.  
@@ -202,21 +200,21 @@ Render and Vercel are both connected to `origin/main` and will automatically red
 
 ## 🩺 Health Check URLs
 
-| Endpoint | Expected |
-|----------|----------|
-| `GET https://<render-url>/` | `{"status":"online"}` |
+| Endpoint                              | Expected               |
+| ------------------------------------- | ---------------------- |
+| `GET https://<render-url>/`           | `{"status":"online"}`  |
 | `GET https://<render-url>/api/health` | `{"status":"healthy"}` |
-| `https://<vercel-url>/` | Login page loads |
+| `https://<vercel-url>/`               | Login page loads       |
 
 ---
 
 ## 🐛 Common Issues
 
-| Problem | Fix |
-|---------|-----|
-| CORS error in browser | Update `FRONTEND_ORIGIN` on Render with exact Vercel URL |
-| 404 on page refresh | Ensure `vercel.json` exists in `frontend/` |
-| MongoDB connection timeout | Whitelist `0.0.0.0/0` in Atlas Network Access |
-| Render cold start delay | Expected on free tier — upgrade to Starter ($7/mo) to avoid |
+| Problem                         | Fix                                                           |
+| ------------------------------- | ------------------------------------------------------------- |
+| CORS error in browser           | Update `FRONTEND_ORIGIN` on Render with exact Vercel URL      |
+| 404 on page refresh             | Ensure `vercel.json` exists in `frontend/`                    |
+| MongoDB connection timeout      | Whitelist `0.0.0.0/0` in Atlas Network Access                 |
+| Render cold start delay         | Expected on free tier — upgrade to Starter ($7/mo) to avoid   |
 | `VITE_API_BASE_URL` not working | Must prefix with `VITE_` or Vite will ignore it at build time |
-| 500 on `/api/chat` | Check Render logs → likely a missing env var |
+| 500 on `/api/chat`              | Check Render logs → likely a missing env var                  |

@@ -12,7 +12,7 @@ function AppContent() {
       <div className="flex h-screen w-screen items-center justify-center bg-chat-bg">
         <div className="flex flex-col items-center gap-3 text-gray-400">
           <Loader2 className="w-7 h-7 animate-spin text-brand-400" />
-          <span className="text-sm font-medium">Starting Agentic AI...</span>
+          <span className="text-sm font-medium">Starting CHAUTIBOT...</span>
         </div>
       </div>
     );

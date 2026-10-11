@@ -63,6 +63,7 @@ git remote -v
 ```
 
 Expected output:
+
 ```
 origin  https://github.com/vedant-chautiwar/chatbot.git (fetch)
 origin  https://github.com/vedant-chautiwar/chatbot.git (push)
@@ -74,13 +75,13 @@ origin  https://github.com/vedant-chautiwar/chatbot.git (push)
 
 The `.gitignore` in this project already excludes sensitive files. Double-check these are **never committed**:
 
-| File | Reason |
-|------|--------|
-| `.env` | Contains API keys (Groq, Tavily, JWT secret) |
-| `.venv/` | Python virtual environment |
-| `node_modules/` | Frontend dependencies |
-| `__pycache__/` | Python bytecode |
-| `.pytest_cache/` | Test cache |
+| File             | Reason                                       |
+| ---------------- | -------------------------------------------- |
+| `.env`           | Contains API keys (Groq, Tavily, JWT secret) |
+| `.venv/`         | Python virtual environment                   |
+| `node_modules/`  | Frontend dependencies                        |
+| `__pycache__/`   | Python bytecode                              |
+| `.pytest_cache/` | Test cache                                   |
 
 > **Tip:** Run `git status` before committing to confirm no `.env` or secrets are staged.
 

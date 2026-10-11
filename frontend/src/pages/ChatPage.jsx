@@ -290,7 +290,7 @@ export function ChatPage() {
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white">
                   <Bot className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-sm font-semibold text-white">Agentic AI</span>
+                <span className="text-sm font-semibold text-white">CHAUTIBOT</span>
               </div>
             )}
 

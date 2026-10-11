@@ -96,7 +96,7 @@ export function Sidebar({
             <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
               <Bot className="w-4 h-4" />
             </div>
-            <span className="font-semibold text-[15px] text-white tracking-tight">Agentic AI</span>
+            <span className="font-semibold text-[15px] text-white tracking-tight">CHAUTIBOT</span>
           </div>
           <button
             type="button"

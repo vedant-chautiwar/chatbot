@@ -66,7 +66,7 @@ export function ChatMessage({ message, isStreaming = false, streamStatus = null 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-semibold text-gray-300">
-              {isUser ? 'You' : 'Agentic Assistant'}
+              {isUser ? 'You' : 'CHAUTIBOT'}
             </span>
 
             {/* Copy message button */}

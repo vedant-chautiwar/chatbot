@@ -14,7 +14,7 @@ export function AuthPage() {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
             <Bot className="w-5 h-5" />
           </div>
-          <span className="font-semibold text-lg tracking-tight text-white">Agentic AI</span>
+          <span className="font-semibold text-lg tracking-tight text-white">CHAUTIBOT</span>
         </div>
       </header>
 
@@ -80,7 +80,7 @@ export function AuthPage() {
 
       {/* Footer */}
       <footer className="max-w-6xl w-full mx-auto text-center py-4 text-xs text-gray-500">
-        Agentic AI Chatbot with Web Search &bull; Fast, grounded, and secure.
+        CHAUTIBOT with Web Search &bull; Fast, grounded, and secure.
       </footer>
     </div>
   );
