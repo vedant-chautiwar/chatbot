@@ -82,7 +82,11 @@ class Settings(BaseSettings):
         """Parse comma-separated origins into a list of cleaned strings."""
         if not self.FRONTEND_ORIGIN:
             return ["*"]
-        return [origin.strip() for origin in self.FRONTEND_ORIGIN.split(",") if origin.strip()]
+        return [
+            origin.strip().rstrip("/")
+            for origin in self.FRONTEND_ORIGIN.split(",")
+            if origin.strip()
+        ]
 
     @property
     def effective_jwt_secret(self) -> str:
