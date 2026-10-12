@@ -9,9 +9,9 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-chat-bg">
-        <div className="flex flex-col items-center gap-3 text-gray-400">
-          <Loader2 className="w-7 h-7 animate-spin text-brand-400" />
+      <div className="flex h-screen w-screen items-center justify-center bg-black">
+        <div className="flex flex-col items-center gap-3 text-neutral-400">
+          <Loader2 className="w-6 h-6 animate-spin text-neutral-200" />
           <span className="text-sm font-medium">Starting CHAUTIBOT...</span>
         </div>
       </div>

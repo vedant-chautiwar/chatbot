@@ -22,6 +22,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           markdown: ['react-markdown', 'remark-gfm'],
           icons: ['lucide-react'],
+          highlight: ['react-syntax-highlighter'],
         },
       },
     },

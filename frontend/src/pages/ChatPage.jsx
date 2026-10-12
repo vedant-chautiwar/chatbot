@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, Loader2, RefreshCw, PanelLeft, Bot, SquarePen, ChevronDown } from 'lucide-react';
 import { ChatMessage } from '../components/chat/ChatMessage';
 import { MessageComposer } from '../components/chat/MessageComposer';
 import { WelcomeScreen } from '../components/chat/WelcomeScreen';
 import { Sidebar } from '../components/sidebar/Sidebar';
 import { fetchConversationDetails } from '../api/conversations';
 import { streamChatMessage } from '../api/chat';
-import { PanelLeft, Bot } from 'lucide-react';
 
-const SCROLL_THRESHOLD = 100; // px from bottom to auto-scroll
+const SCROLL_THRESHOLD = 120; // px from bottom to show scroll button
 
 export function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -22,6 +21,7 @@ export function ChatPage() {
   const [streamStatus, setStreamStatus] = useState(null);
   const [conversationTitle, setConversationTitle] = useState('');
   const [sidebarRefresh, setSidebarRefresh] = useState(0);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -40,13 +40,17 @@ export function ChatPage() {
     const container = messagesContainerRef.current;
     if (!container) return;
     const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-    userScrolledUpRef.current = distanceFromBottom > SCROLL_THRESHOLD;
+    const isScrolledUp = distanceFromBottom > SCROLL_THRESHOLD;
+    userScrolledUpRef.current = isScrolledUp;
+    setShowScrollBottom(isScrolledUp);
   }, []);
 
   // Auto-scroll to bottom
   const scrollToBottom = useCallback((force = false) => {
     if (force || !userScrolledUpRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setShowScrollBottom(false);
+      userScrolledUpRef.current = false;
     }
   }, []);
 
@@ -256,7 +260,7 @@ export function ChatPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-chat-bg">
+    <div className="flex h-screen w-screen overflow-hidden bg-black text-[#ececec]">
       {/* Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
@@ -267,64 +271,92 @@ export function ChatPage() {
         refreshTrigger={sidebarRefresh}
       />
 
-      {/* Main chat area */}
-      <div
-        className={`flex flex-col flex-1 min-w-0 h-full transition-all duration-200 ${
-          sidebarOpen ? 'md:ml-0' : ''
-        }`}
-      >
+      {/* Main chat canvas */}
+      <div className="flex flex-col flex-1 min-w-0 h-full relative bg-black">
         {/* Top Header */}
-        <header className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-chat-border bg-chat-bg/80 backdrop-blur-sm">
-          <div className="flex items-center gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => setSidebarOpen((v) => !v)}
-              className="p-2 rounded-xl hover:bg-chat-surface text-gray-400 hover:text-gray-200 transition-colors flex-shrink-0"
-              title="Toggle sidebar"
-            >
-              <PanelLeft className="w-4.5 h-4.5 w-[18px] h-[18px]" />
-            </button>
-
+        <header className="flex-shrink-0 flex items-center justify-between px-3 sm:px-4 py-2.5 bg-black z-10 min-h-[48px]">
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Sidebar toggle button (visible when sidebar is closed) */}
             {!sidebarOpen && (
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white">
-                  <Bot className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-sm font-semibold text-white">CHAUTIBOT</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="p-1.5 rounded-lg hover:bg-[#212121] text-[#a3a3a3] hover:text-[#ececec] transition-colors flex-shrink-0"
+                title="Open sidebar"
+              >
+                <PanelLeft className="w-[18px] h-[18px]" />
+              </button>
             )}
 
-            {conversationTitle && (
-              <span className="text-sm text-gray-300 truncate font-medium" title={conversationTitle}>
-                {conversationTitle}
-              </span>
+            {/* Quick new chat when sidebar is closed */}
+            {!sidebarOpen && (
+              <button
+                type="button"
+                onClick={handleNewChat}
+                className="p-1.5 rounded-lg hover:bg-[#212121] text-[#a3a3a3] hover:text-[#ececec] transition-colors flex-shrink-0"
+                title="New chat"
+              >
+                <SquarePen className="w-[18px] h-[18px]" />
+              </button>
+            )}
+
+            {/* App branding or Conversation Title */}
+            <div className="flex items-center gap-2 min-w-0 ml-0.5">
+              {!sidebarOpen && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="w-6 h-6 rounded-md bg-[#1f1f1f] border border-[#2e2e2e] flex items-center justify-center text-white">
+                    <Bot className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-sm font-semibold text-white tracking-tight">CHAUTIBOT</span>
+                </div>
+              )}
+
+              {conversationTitle && (
+                <span className="text-sm text-[#ececec] truncate font-medium max-w-xs sm:max-w-md" title={conversationTitle}>
+                  {conversationTitle}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Right Header Action */}
+          <div className="flex items-center gap-1">
+            {sidebarOpen && (
+              <button
+                type="button"
+                onClick={handleNewChat}
+                className="p-1.5 rounded-lg hover:bg-[#212121] text-[#a3a3a3] hover:text-[#ececec] transition-colors flex-shrink-0"
+                title="New chat"
+              >
+                <SquarePen className="w-[18px] h-[18px]" />
+              </button>
             )}
           </div>
         </header>
 
         {/* Messages area */}
         <div
-          className="flex-1 overflow-y-auto relative"
+          className="flex-1 min-h-0 overflow-y-auto relative"
           ref={messagesContainerRef}
           onScroll={handleScroll}
         >
           {messagesLoading ? (
             <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-3 text-gray-400">
-                <Loader2 className="w-6 h-6 animate-spin text-brand-400" />
-                <span className="text-sm">Loading conversation...</span>
+              <div className="flex flex-col items-center gap-3 text-[#737373]">
+                <Loader2 className="w-5 h-5 animate-spin text-[#a3a3a3]" />
+                <span className="text-xs">Loading conversation...</span>
               </div>
             </div>
           ) : messagesError && messages.length === 0 ? (
             <div className="flex items-center justify-center h-full p-6">
               <div className="max-w-sm text-center space-y-3">
-                <AlertCircle className="w-10 h-10 text-red-400 mx-auto" />
-                <h3 className="text-base font-semibold text-gray-200">Failed to load conversation</h3>
-                <p className="text-sm text-gray-400">{messagesError}</p>
+                <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+                <h3 className="text-sm font-semibold text-gray-200">Failed to load conversation</h3>
+                <p className="text-xs text-[#a3a3a3]">{messagesError}</p>
                 <button
                   type="button"
                   onClick={() => activeConversationId && loadConversation(activeConversationId)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#212121] hover:bg-[#2a2a2a] text-white text-xs font-medium transition-colors border border-[#333333]"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   Retry
@@ -334,7 +366,7 @@ export function ChatPage() {
           ) : !hasMessages ? (
             <WelcomeScreen onSelectPrompt={handleWelcomePrompt} />
           ) : (
-            <div className="pb-4 pt-2">
+            <div className="pb-6 pt-3">
               {messages.map((msg, idx) => {
                 const isLastMessage = idx === messages.length - 1;
                 const isStreamingThis = isStreaming && isLastMessage && msg.role === 'assistant';
@@ -352,23 +384,37 @@ export function ChatPage() {
           )}
         </div>
 
-        {/* Error banner at bottom if send fails */}
+        {/* Scroll down floating button (matching Screenshot 2) */}
+        {showScrollBottom && hasMessages && (
+          <button
+            type="button"
+            onClick={() => scrollToBottom(true)}
+            className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 w-8 h-8 rounded-full bg-[#212121] border border-[#383838] hover:bg-[#2e2e2e] text-[#ececec] flex items-center justify-center shadow-lg transition-all animate-fade-in"
+            title="Scroll to bottom"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Error banner if send fails */}
         {messagesError && hasMessages && (
-          <div className="flex-shrink-0 mx-4 mb-2 p-2.5 rounded-xl bg-red-950/40 border border-red-800/40 flex items-center gap-2 text-xs text-red-200 animate-fade-in">
-            <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-            <span className="flex-1">{messagesError}</span>
-            <button
-              type="button"
-              onClick={() => setMessagesError(null)}
-              className="text-red-400 hover:text-red-200"
-            >
-              ✕
-            </button>
+          <div className="flex-shrink-0 max-w-3xl mx-auto w-full px-4 mb-2">
+            <div className="p-2.5 rounded-xl bg-red-950/30 border border-red-800/40 flex items-center gap-2 text-xs text-red-200 animate-fade-in">
+              <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+              <span className="flex-1">{messagesError}</span>
+              <button
+                type="button"
+                onClick={() => setMessagesError(null)}
+                className="text-red-400 hover:text-red-200 px-1"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         )}
 
         {/* Message composer */}
-        <div className="flex-shrink-0 pb-2 pt-1 bg-chat-bg">
+        <div className="flex-shrink-0 bg-black">
           <MessageComposer
             input={input}
             setInput={setInput}
@@ -382,3 +428,4 @@ export function ChatPage() {
     </div>
   );
 }
+

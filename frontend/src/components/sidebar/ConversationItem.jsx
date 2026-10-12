@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MoreHorizontal, Pencil, Trash2, Check, X, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Check, X } from 'lucide-react';
 import { renameConversation, deleteConversation } from '../../api/conversations';
 
 export function ConversationItem({
@@ -86,24 +86,17 @@ export function ConversationItem({
     }
   };
 
-  const preview = conversation.last_message_preview;
-  const messageCount = conversation.message_count || 0;
-
   return (
     <div
-      className={`group relative flex items-start gap-2 w-full px-2.5 py-2.5 rounded-xl cursor-pointer transition-all duration-100 ${
+      className={`group relative flex items-center justify-between w-full px-2.5 py-2 rounded-lg cursor-pointer text-sm transition-colors duration-150 ${
         isActive
-          ? 'bg-chat-surfaceHover border border-chat-border text-white'
-          : 'hover:bg-chat-surfaceHover/60 text-gray-400 hover:text-gray-200 border border-transparent'
+          ? 'bg-[#212121] text-white font-medium'
+          : 'text-[#b4b4b4] hover:text-[#ececec] hover:bg-[#171717]'
       } ${deleteLoading ? 'opacity-50 pointer-events-none' : ''}`}
       onClick={() => !isRenaming && onClick?.()}
       title={conversation.title}
     >
-      <div className="flex-shrink-0 mt-0.5">
-        <MessageSquare className={`w-3.5 h-3.5 ${isActive ? 'text-brand-400' : 'text-gray-500 group-hover:text-gray-400'}`} />
-      </div>
-
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pr-1">
         {isRenaming ? (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <input
@@ -113,13 +106,14 @@ export function ConversationItem({
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={handleRenameKeyDown}
               disabled={renameLoading}
-              className="flex-1 min-w-0 px-1.5 py-0.5 bg-chat-elevated border border-brand-500 rounded text-xs text-white focus:outline-none"
+              className="flex-1 min-w-0 px-2 py-0.5 bg-[#171717] border border-[#404040] rounded text-xs text-white focus:outline-none focus:border-gray-300"
             />
             <button
               type="button"
               onClick={handleRenameSubmit}
               disabled={renameLoading}
               className="p-1 hover:text-emerald-400 text-gray-300"
+              title="Save"
             >
               <Check className="w-3.5 h-3.5" />
             </button>
@@ -127,25 +121,19 @@ export function ConversationItem({
               type="button"
               onClick={() => setIsRenaming(false)}
               className="p-1 hover:text-red-400 text-gray-400"
+              title="Cancel"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
-          <>
-            <p className="text-xs font-medium leading-snug truncate text-gray-200">
-              {conversation.title}
-            </p>
-            {preview && (
-              <p className="text-[11px] text-gray-500 truncate mt-0.5 leading-tight">
-                {preview}
-              </p>
-            )}
-          </>
+          <span className="block truncate text-[13.5px] leading-snug">
+            {conversation.title}
+          </span>
         )}
       </div>
 
-      {/* Context menu trigger */}
+      {/* Context menu trigger (subtle hover state like ChatGPT) */}
       {!isRenaming && (
         <div className="relative flex-shrink-0" ref={menuRef}>
           <button
@@ -154,28 +142,28 @@ export function ConversationItem({
               e.stopPropagation();
               setShowMenu((v) => !v);
             }}
-            className={`p-1 rounded-lg text-gray-500 hover:text-gray-200 hover:bg-chat-elevated transition-colors ${
+            className={`p-1 rounded text-gray-400 hover:text-white hover:bg-[#2e2e2e] transition-colors ${
               showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
             }`}
-            title="Conversation actions"
+            title="Options"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-7 z-30 min-w-[130px] bg-chat-elevated border border-chat-border rounded-xl py-1 shadow-xl shadow-black/50 animate-fade-in">
+            <div className="absolute right-0 top-6 z-50 min-w-[130px] bg-[#1c1c1c] border border-[#2e2e2e] rounded-xl py-1 shadow-2xl shadow-black/80 animate-fade-in text-xs">
               <button
                 type="button"
                 onClick={handleStartRename}
-                className="w-full text-left px-3 py-1.5 text-xs text-gray-200 hover:bg-chat-surfaceHover hover:text-white flex items-center gap-2 transition-colors"
+                className="w-full text-left px-3 py-1.5 text-gray-200 hover:bg-[#282828] hover:text-white flex items-center gap-2 transition-colors"
               >
-                <Pencil className="w-3.5 h-3.5 text-brand-400" />
+                <Pencil className="w-3.5 h-3.5 text-gray-400" />
                 Rename
               </button>
               <button
                 type="button"
                 onClick={handleDelete}
-                className="w-full text-left px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/30 hover:text-red-200 flex items-center gap-2 transition-colors"
+                className="w-full text-left px-3 py-1.5 text-red-400 hover:bg-red-950/30 hover:text-red-300 flex items-center gap-2 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5 text-red-400" />
                 Delete
@@ -187,3 +175,4 @@ export function ConversationItem({
     </div>
   );
 }
+

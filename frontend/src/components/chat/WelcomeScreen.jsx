@@ -1,75 +1,76 @@
 import React from 'react';
-import { Sparkles, Globe, Cpu, Code2, ArrowUpRight } from 'lucide-react';
+import { Sparkles, Compass, Lightbulb, Code2 } from 'lucide-react';
 
 export function WelcomeScreen({ onSelectPrompt }) {
   const suggestions = [
     {
       title: 'Explain a complex concept simply',
-      description: 'e.g., How does transformer self-attention work?',
-      icon: Sparkles,
+      description: 'How does transformer self-attention work?',
+      icon: Lightbulb,
       prompt: 'Explain how transformer self-attention works in simple, intuitive terms with a clear analogy.',
     },
     {
       title: 'Explore the latest AI developments',
-      description: 'e.g., What are the latest breakthrough releases this week?',
-      icon: Globe,
-      prompt: 'What are the most significant recent developments and breakthrough models announced in AI lately?',
+      description: 'What are the latest breakthrough releases?',
+      icon: Compass,
+      prompt: 'What are the latest breakthrough releases and major updates in AI?',
     },
     {
       title: 'Compare two technologies',
-      description: 'e.g., FastAPI vs Express.js for modern APIs',
-      icon: Cpu,
-      prompt: 'Compare FastAPI and Express.js for building scalable modern APIs. What are their core trade-offs?',
+      description: 'FastAPI vs Express.js for modern APIs',
+      icon: Sparkles,
+      prompt: 'Compare FastAPI vs Express.js for modern APIs. What are the key architectural differences and trade-offs?',
     },
     {
       title: 'Help debug a piece of code',
-      description: 'e.g., Find issues in async Python or React hooks',
+      description: 'Find issues in async Python or React hooks',
       icon: Code2,
-      prompt: 'Can you help me understand common pitfalls and memory leaks with React useEffect and how to avoid them?',
+      prompt: 'Help debug a piece of code: what are common issues and subtle bugs in async Python or React hooks?',
     },
   ];
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-4 max-w-2xl mx-auto my-auto text-center animate-fade-in">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white mb-5 shadow-xl shadow-brand-500/10">
-        <Sparkles className="w-6 h-6" />
-      </div>
+    <div className="h-full flex flex-col items-center justify-center px-4 py-12 select-none animate-fade-in">
+      <div className="w-full max-w-[680px] flex flex-col items-center text-center">
+        {/* Brand icon */}
+        <div className="w-11 h-11 rounded-full bg-[#1c1c1c] border border-[#2e2e2e] flex items-center justify-center mb-5 shadow-sm">
+          <Sparkles className="w-5 h-5 text-white" />
+        </div>
 
-      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white mb-2.5">
-        Where should we start?
-      </h1>
+        <h1 className="text-[28px] sm:text-[32px] font-semibold tracking-tight text-white mb-2.5 leading-tight">
+          Where should we start?
+        </h1>
 
-      <p className="text-sm sm:text-base text-gray-400 max-w-lg mb-8 leading-relaxed">
-        Ask anything — I can answer directly from foundational knowledge or research real-time information with autonomous web search when needed.
-      </p>
+        <p className="text-[14px] text-[#a3a3a3] max-w-[440px] mb-9 leading-relaxed">
+          Ask anything — I can answer from foundational knowledge or search the web in real-time when needed.
+        </p>
 
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-        {suggestions.map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={index}
-              type="button"
-              onClick={() => onSelectPrompt(item.prompt)}
-              className="group p-4 rounded-xl bg-chat-surface hover:bg-chat-surfaceHover border border-chat-border hover:border-brand-500/40 text-left transition-all duration-150 flex flex-col justify-between shadow-sm hover:shadow-md"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="p-2 rounded-lg bg-chat-elevated text-brand-400 group-hover:text-brand-300 transition-colors">
-                  <Icon className="w-4 h-4" />
+        {/* Suggested prompt cards: 2-column grid */}
+        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+          {suggestions.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={index}
+                type="button"
+                onClick={() => onSelectPrompt(item.prompt)}
+                className="group p-4 rounded-2xl bg-[#141414] hover:bg-[#1a1a1a] border border-[#262626] hover:border-[#333333] transition-all duration-150 flex items-start gap-3 text-left active:scale-[0.99]"
+              >
+                <div className="mt-0.5 p-1.5 rounded-lg bg-[#1f1f1f] border border-[#2a2a2a] text-[#a3a3a3] group-hover:text-white transition-colors flex-shrink-0">
+                  <Icon className="w-3.5 h-3.5" />
                 </div>
-                <ArrowUpRight className="w-4 h-4 text-gray-500 group-hover:text-brand-400 transition-colors opacity-0 group-hover:opacity-100" />
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
-                  {item.title}
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
-                  {item.description}
-                </p>
-              </div>
-            </button>
-          );
-        })}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium text-[#ececec] group-hover:text-white leading-snug">
+                    {item.title}
+                  </p>
+                  <p className="text-[12px] text-[#737373] mt-0.5 line-clamp-2 leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

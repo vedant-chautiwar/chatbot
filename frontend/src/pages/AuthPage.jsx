@@ -7,12 +7,12 @@ export function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between bg-chat-bg text-gray-100 p-4 sm:p-8">
+    <div className="min-h-screen w-full flex flex-col justify-between bg-black text-[#ececec] p-4 sm:p-8">
       {/* Top Navbar */}
       <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
-            <Bot className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg bg-[#1f1f1f] border border-[#2e2e2e] flex items-center justify-center text-white shadow-sm">
+            <Bot className="w-4.5 h-4.5" />
           </div>
           <span className="font-semibold text-lg tracking-tight text-white">CHAUTIBOT</span>
         </div>
@@ -23,46 +23,46 @@ export function AuthPage() {
         {/* Left column: Brand vision & capabilities */}
         <div className="hidden md:flex flex-col space-y-6 pr-6">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-medium">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#171717] border border-[#2e2e2e] text-[#a3a3a3] text-xs font-medium">
               <Zap className="w-3.5 h-3.5" />
               <span>Groq LLM + Real-Time Tavily Search</span>
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-white leading-tight">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
               Intelligent answers with real-time web grounding.
             </h1>
-            <p className="text-base text-gray-400 leading-relaxed">
+            <p className="text-sm sm:text-base text-[#a3a3a3] leading-relaxed">
               Experience an agentic conversational assistant that dynamically determines when to retrieve verified external evidence and cite web sources.
             </p>
           </div>
 
           <div className="space-y-3.5 pt-2">
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-chat-surface border border-chat-border text-brand-400 mt-0.5">
+              <div className="p-2 rounded-lg bg-[#141414] border border-[#262626] text-[#a3a3a3] mt-0.5">
                 <Globe className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-200">Autonomous Web Retrieval</h3>
-                <p className="text-xs text-gray-400">Pulls live web evidence only when needed, with real source citations.</p>
+                <h3 className="text-sm font-semibold text-[#f5f5f5]">Autonomous Web Retrieval</h3>
+                <p className="text-xs text-[#8e8e8e]">Pulls live web evidence only when needed, with real source citations.</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-chat-surface border border-chat-border text-cyan-400 mt-0.5">
+              <div className="p-2 rounded-lg bg-[#141414] border border-[#262626] text-[#a3a3a3] mt-0.5">
                 <Zap className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-200">High-Velocity Groq Inference</h3>
-                <p className="text-xs text-gray-400">Stream responses progressively with low-latency token delivery.</p>
+                <h3 className="text-sm font-semibold text-[#f5f5f5]">High-Velocity Groq Inference</h3>
+                <p className="text-xs text-[#8e8e8e]">Stream responses progressively with low-latency token delivery.</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-chat-surface border border-chat-border text-emerald-400 mt-0.5">
+              <div className="p-2 rounded-lg bg-[#141414] border border-[#262626] text-[#a3a3a3] mt-0.5">
                 <Shield className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-200">Isolated & Persisted Chats</h3>
-                <p className="text-xs text-gray-400">Protected user accounts and conversations stored securely in MongoDB.</p>
+                <h3 className="text-sm font-semibold text-[#f5f5f5]">Isolated & Persisted Chats</h3>
+                <p className="text-xs text-[#8e8e8e]">Protected user accounts and conversations stored securely in MongoDB.</p>
               </div>
             </div>
           </div>

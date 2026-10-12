@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, User, Copy, Check, Globe, Loader2, Sparkles } from 'lucide-react';
+import { Copy, Check, Globe, Loader2, Sparkles } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 import { SourceCards } from './SourceCards';
 
@@ -24,146 +24,129 @@ export function ChatMessage({ message, isStreaming = false, streamStatus = null 
     if (!isStreaming || !streamStatus) return null;
 
     let label = 'Thinking...';
-    let icon = <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-400" />;
+    let icon = <Loader2 className="w-3.5 h-3.5 animate-spin text-[#a3a3a3]" />;
 
     if (streamStatus === 'searching') {
-      label = 'Searching the web...';
-      icon = <Globe className="w-3.5 h-3.5 animate-pulse text-cyan-400" />;
+      label = 'Searching the web with Tavily...';
+      icon = <Globe className="w-3.5 h-3.5 animate-pulse text-[#60a5fa]" />;
     } else if (streamStatus === 'generating') {
-      label = 'Generating answer...';
-      icon = <Sparkles className="w-3.5 h-3.5 animate-pulse text-violet-400" />;
+      label = 'Generating response...';
+      icon = <Sparkles className="w-3.5 h-3.5 animate-pulse text-[#a3a3a3]" />;
     }
 
     return (
-      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-chat-surface border border-chat-border text-xs text-gray-300 mb-3 animate-fade-in shadow-sm">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#171717] border border-[#262626] text-xs text-[#a3a3a3] mb-3 animate-fade-in">
         {icon}
-        <span className="font-medium text-[11px]">{label}</span>
+        <span className="font-medium text-[12px]">{label}</span>
       </div>
     );
   };
 
+  // USER MESSAGE: Compact right-aligned bubble container
+  if (isUser) {
+    return (
+      <div className="w-full max-w-[740px] mx-auto px-4 sm:px-6 my-3 flex justify-end">
+        <div className="max-w-[85%] sm:max-w-[70%] bg-[#2f2f2f] text-[#ececec] px-[18px] py-3 rounded-[20px] text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
+
+  // ASSISTANT MESSAGE: Clean unboxed text directly on black canvas
   return (
-    <div
-      className={`w-full py-4 px-4 sm:px-6 transition-colors ${
-        isUser ? 'bg-transparent' : 'bg-chat-sidebar/40 border-y border-chat-border/30'
-      }`}
-    >
-      <div className="max-w-3xl mx-auto flex gap-4 items-start">
-        {/* Avatar */}
-        <div className="flex-shrink-0 mt-0.5">
-          {isUser ? (
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-700/80 border border-gray-600 flex items-center justify-center text-gray-200 shadow-sm">
-              <User className="w-4 h-4" />
-            </div>
-          ) : (
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
-              <Bot className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-            </div>
-          )}
-        </div>
+    <div className="w-full max-w-[740px] mx-auto px-4 sm:px-6 my-4 transition-colors">
+      <div className="w-full">
+        {/* Activity status badge while streaming */}
+        {renderStatusBadge()}
 
-        {/* Content Body */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-gray-300">
-              {isUser ? 'You' : 'CHAUTIBOT'}
-            </span>
-
-            {/* Copy message button */}
-            {message.content && !isStreaming && (
-              <button
-                type="button"
-                onClick={handleCopyMessage}
-                className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-1 rounded hover:bg-chat-surface text-gray-400 hover:text-gray-200 transition-all text-xs flex items-center gap-1"
-                title="Copy message"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-[11px] text-emerald-400">Copied</span>
-                  </>
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
-                )}
-              </button>
-            )}
-          </div>
-
-          {/* Activity status badge while streaming */}
-          {renderStatusBadge()}
-
-          {/* Message content */}
-          {isUser ? (
-            <div className="text-gray-100 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+        {/* Message body */}
+        <div className="prose-chat break-words">
+          {message.content ? (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                code({ inline, className, children, ...props }) {
+                  const match = /language-(\w+)/.exec(className || '');
+                  const codeContent = String(children).replace(/\n$/, '');
+                  if (!inline && match) {
+                    return (
+                      <CodeBlock
+                        language={match[1]}
+                        value={codeContent}
+                      />
+                    );
+                  }
+                  if (!inline && !match && codeContent.includes('\n')) {
+                    return (
+                      <CodeBlock
+                        language=""
+                        value={codeContent}
+                      />
+                    );
+                  }
+                  return (
+                    <code className={className} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                a({ href, children }) {
+                  return (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#60a5fa] hover:text-[#93c5fd] underline underline-offset-2 transition-colors font-medium"
+                    >
+                      {children}
+                    </a>
+                  );
+                },
+              }}
+            >
               {message.content}
+            </ReactMarkdown>
+          ) : isStreaming ? (
+            <div className="text-[#737373] text-sm italic flex items-center gap-2 py-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-[#a3a3a3] animate-ping" />
+              Generating response...
             </div>
-          ) : (
-            <div className="prose-chat break-words">
-              {message.content ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    code({ inline, className, children, ...props }) {
-                      const match = /language-(\w+)/.exec(className || '');
-                      const codeContent = String(children).replace(/\n$/, '');
-                      if (!inline && match) {
-                        return (
-                          <CodeBlock
-                            language={match[1]}
-                            value={codeContent}
-                          />
-                        );
-                      }
-                      if (!inline && !match && codeContent.includes('\n')) {
-                        return (
-                          <CodeBlock
-                            language=""
-                            value={codeContent}
-                          />
-                        );
-                      }
-                      return (
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      );
-                    },
-                    a({ href, children }) {
-                      return (
-                        <a
-                          href={href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2 transition-colors font-medium"
-                        >
-                          {children}
-                        </a>
-                      );
-                    },
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              ) : isStreaming ? (
-                <div className="text-gray-500 text-sm italic flex items-center gap-2">
-                  <span className="inline-block w-2 h-2 rounded-full bg-brand-400 animate-ping" />
-                  Generating response...
-                </div>
-              ) : null}
+          ) : null}
 
-              {/* Streaming cursor indicator */}
-              {isStreaming && message.content && (
-                <span className="inline-block w-1.5 h-4 ml-0.5 bg-brand-400 animate-pulse align-middle" />
-              )}
-            </div>
-          )}
-
-          {/* Validated Web Search Sources */}
-          {message.sources && message.sources.length > 0 && (
-            <SourceCards sources={message.sources} />
+          {/* Streaming cursor indicator */}
+          {isStreaming && message.content && (
+            <span className="inline-block w-1.5 h-4 ml-0.5 bg-[#ececec] animate-pulse align-middle" />
           )}
         </div>
+
+        {/* Validated Web Search Sources */}
+        {message.sources && message.sources.length > 0 && (
+          <SourceCards sources={message.sources} />
+        )}
+
+        {/* Action icons below assistant message */}
+        {message.content && !isStreaming && (
+          <div className="flex items-center gap-1 mt-3 -ml-1 text-[#8e8e8e]">
+            <button
+              type="button"
+              onClick={handleCopyMessage}
+              className="p-1.5 rounded-lg hover:bg-[#1c1c1c] hover:text-[#ececec] transition-colors text-xs flex items-center gap-1.5"
+              title="Copy response"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-[11px] text-emerald-400">Copied</span>
+                </>
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

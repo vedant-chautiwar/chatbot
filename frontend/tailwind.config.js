@@ -9,14 +9,15 @@ export default {
     extend: {
       colors: {
         chat: {
-          bg: '#0d0f14',
-          sidebar: '#12151c',
-          surface: '#181c25',
-          surfaceHover: '#1f2430',
-          elevated: '#242a38',
-          border: '#232936',
-          borderSubtle: '#1d222d',
-          input: '#151922',
+          bg: '#000000',
+          sidebar: '#0d0d0d',
+          surface: '#171717',
+          surfaceHover: '#212121',
+          elevated: '#262626',
+          border: '#262626',
+          borderSubtle: '#1f1f1f',
+          input: '#212121',
+          userBubble: '#262626',
         },
         brand: {
           50: '#eff6ff',

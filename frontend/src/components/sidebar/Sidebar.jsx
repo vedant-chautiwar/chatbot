@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Bot, Plus, LogOut, Search, X, User, ChevronLeft, AlertCircle, Loader2, MessageSquare } from 'lucide-react';
+import { Bot, SquarePen, Plus, LogOut, Search, X, PanelLeft, ChevronLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchConversations } from '../../api/conversations';
 import { ConversationItem } from './ConversationItem';
@@ -18,6 +18,7 @@ export function Sidebar({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const loadConversations = useCallback(async () => {
@@ -68,119 +69,134 @@ export function Sidebar({
       )
     : conversations;
 
-  // Group conversations by recency: Today, This Week, Older
+  // Group conversations: Today, Previous 7 Days, Older
   const grouped = groupByRecency(filteredConversations);
 
-  const userDisplay = user?.email || user?.user_metadata?.email || 'User';
-  const userInitial = (userDisplay[0] || 'U').toUpperCase();
+  const userEmail = user?.email || user?.user_metadata?.email || 'User';
+  const userName = user?.name || (userEmail.includes('@') ? userEmail.split('@')[0] : userEmail);
+  const userInitials = (userName.slice(0, 2) || 'VC').toUpperCase();
 
   return (
     <>
       {/* Mobile overlay backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-30 bg-black/70 backdrop-blur-sm md:hidden"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar Panel */}
       <aside
-        className={`fixed md:relative inset-y-0 left-0 z-30 w-64 flex-shrink-0 bg-chat-sidebar border-r border-chat-border flex flex-col h-full transition-transform duration-200 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed md:relative inset-y-0 left-0 z-40 w-[260px] flex-shrink-0 bg-[#0d0d0d] border-r border-[#212121] flex flex-col h-full transition-transform duration-200 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full md:-translate-x-full md:!w-0 md:!p-0 md:!border-r-0 overflow-hidden'
         }`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-3 border-b border-chat-border flex-shrink-0">
+        {/* Top Header: Brand + Controls */}
+        <div className="flex items-center justify-between px-3.5 py-3 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-brand-600 to-cyan-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
-              <Bot className="w-4 h-4" />
+            <div className="w-7 h-7 rounded-lg bg-[#1f1f1f] border border-[#2e2e2e] flex items-center justify-center text-white flex-shrink-0">
+              <Bot className="w-4 h-4 text-white" />
             </div>
-            <span className="font-semibold text-[15px] text-white tracking-tight">CHAUTIBOT</span>
+            <span className="font-semibold text-[14.5px] text-[#f5f5f5] tracking-tight">
+              CHAUTIBOT
+            </span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="md:hidden p-1.5 rounded-lg hover:bg-chat-surface text-gray-400 hover:text-gray-200 transition-colors"
-            title="Close sidebar"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowSearch((v) => !v)}
+              className="p-1.5 rounded-lg hover:bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] transition-colors"
+              title="Search chats"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg hover:bg-[#212121] text-[#8e8e8e] hover:text-[#ececec] transition-colors"
+              title="Close sidebar"
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* New Chat Button */}
-        <div className="px-2.5 pt-3 pb-2 flex-shrink-0">
+        <div className="px-2.5 pt-1 pb-2 flex-shrink-0">
           <button
             type="button"
-            onClick={() => { onNewChat?.(); onClose?.(); }}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-600/10 hover:bg-brand-600/20 border border-brand-600/25 hover:border-brand-500/40 text-brand-400 hover:text-brand-300 text-sm font-medium transition-all duration-150"
+            onClick={() => {
+              onNewChat?.();
+              if (window.innerWidth < 768) onClose?.();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#ececec] hover:bg-[#212121] transition-colors font-medium text-left"
           >
-            <Plus className="w-4 h-4" />
-            New chat
+            <SquarePen className="w-4 h-4 text-[#a3a3a3]" />
+            <span>New chat</span>
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-2.5 pb-2 flex-shrink-0">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-chat-surface border border-chat-border text-sm focus-within:border-brand-500/50 transition-colors">
-            <Search className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
-            <input
-              type="search"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent text-gray-200 placeholder-gray-500 text-xs focus:outline-none"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="text-gray-500 hover:text-gray-300 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+        {/* Search Input (conditionally visible or toggleable) */}
+        {showSearch && (
+          <div className="px-2.5 pb-2 flex-shrink-0 animate-fade-in">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#171717] border border-[#2a2a2a] text-xs focus-within:border-[#404040] transition-colors">
+              <Search className="w-3.5 h-3.5 text-[#737373] flex-shrink-0" />
+              <input
+                type="search"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                className="flex-1 bg-transparent text-[#ececec] placeholder-[#737373] text-xs focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-[#737373] hover:text-[#ececec]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Conversations list */}
+        {/* Conversations List */}
         <div className="flex-1 overflow-y-auto px-2 pb-2 min-h-0">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2 text-gray-500">
-              <Loader2 className="w-5 h-5 animate-spin text-brand-400" />
+            <div className="flex flex-col items-center justify-center py-10 gap-2 text-[#737373]">
+              <Loader2 className="w-4 h-4 animate-spin text-[#a3a3a3]" />
               <span className="text-xs">Loading conversations...</span>
             </div>
           ) : error ? (
-            <div className="mx-1 mt-2 p-3 rounded-xl bg-red-950/30 border border-red-800/30 text-xs text-red-300 flex items-start gap-2">
+            <div className="mx-1 mt-2 p-2.5 rounded-lg bg-[#141414] border border-[#262626] text-xs text-[#a3a3a3] flex items-start gap-2">
               <AlertCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-red-400" />
               <div>
-                <p className="font-medium">Failed to load</p>
-                <p className="text-red-400/80 mt-0.5">{error}</p>
+                <p className="font-medium text-[#d4d4d8]">Failed to load</p>
+                <p className="text-[#8e8e8e] mt-0.5 leading-relaxed text-[11px]">{error}</p>
                 <button
                   type="button"
                   onClick={loadConversations}
-                  className="mt-1.5 text-brand-400 hover:text-brand-300 font-medium underline"
+                  className="mt-1 text-xs text-[#d4d4d8] hover:text-white underline"
                 >
                   Retry
                 </button>
               </div>
             </div>
           ) : filteredConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-1.5 text-gray-500 text-center px-3">
-              <MessageSquare className="w-8 h-8 text-gray-700 mb-1" />
-              <p className="text-xs font-medium text-gray-400">
+            <div className="flex flex-col items-center justify-center py-10 text-center px-3">
+              <p className="text-xs text-[#737373]">
                 {searchQuery ? 'No matching conversations' : 'No conversations yet'}
-              </p>
-              <p className="text-[11px] text-gray-600">
-                {searchQuery ? 'Try a different search' : 'Start a new chat above'}
               </p>
             </div>
           ) : (
-            <div className="space-y-1 py-1">
+            <div className="space-y-4 py-1">
               {grouped.map(({ label, items }) =>
                 items.length > 0 ? (
                   <div key={label}>
-                    <p className="px-2 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    <p className="px-2.5 py-1 text-[11px] font-medium text-[#8e8e8e] tracking-tight">
                       {label}
                     </p>
                     <div className="space-y-0.5">
@@ -191,7 +207,7 @@ export function Sidebar({
                           isActive={conv.id === activeConversationId}
                           onClick={() => {
                             onSelectConversation?.(conv.id);
-                            onClose?.();
+                            if (window.innerWidth < 768) onClose?.();
                           }}
                           onRenamed={handleRenamed}
                           onDeleted={handleDeleted}
@@ -205,37 +221,44 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Account area */}
-        <div className="flex-shrink-0 border-t border-chat-border px-2.5 py-2.5 space-y-1">
-          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl">
-            <div className="w-7 h-7 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center text-xs font-semibold text-gray-200 flex-shrink-0">
-              {userInitial}
+        {/* Account Profile Section */}
+        <div className="flex-shrink-0 border-t border-[#212121] p-2">
+          <div className="flex items-center justify-between p-2 rounded-lg hover:bg-[#171717] transition-colors group">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-[#c2410c] flex items-center justify-center text-xs font-semibold text-white flex-shrink-0 shadow-sm">
+                {userInitials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-[#ececec] truncate leading-tight">
+                  {userName}
+                </p>
+                <p className="text-[11px] text-[#737373] truncate leading-tight mt-0.5">
+                  Free
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-200 truncate">{userDisplay}</p>
-              <p className="text-[10px] text-gray-500">Authenticated user</p>
-            </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="p-1.5 rounded-lg text-[#737373] hover:text-red-400 hover:bg-[#262626] transition-colors disabled:opacity-50"
+              title="Sign out"
+            >
+              {loggingOut ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <LogOut className="w-4 h-4" />
+              )}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-gray-400 hover:text-red-300 hover:bg-red-950/20 text-xs font-medium transition-colors disabled:opacity-50"
-          >
-            {loggingOut ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <LogOut className="w-3.5 h-3.5" />
-            )}
-            <span>{loggingOut ? 'Signing out...' : 'Sign out'}</span>
-          </button>
         </div>
       </aside>
     </>
   );
 }
 
-// Group conversations by time into Today, This Week, Older
+// Group conversations into Recents or Today / Previous 7 Days / Older
 function groupByRecency(conversations) {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -259,7 +282,8 @@ function groupByRecency(conversations) {
 
   return [
     { label: 'Today', items: today },
-    { label: 'This Week', items: thisWeek },
+    { label: 'Previous 7 Days', items: thisWeek },
     { label: 'Older', items: older },
   ];
 }
+
