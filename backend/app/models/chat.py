@@ -4,14 +4,16 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class Source(BaseModel):
-    title: str = Field(description="Title of the source webpage or article")
-    url: str = Field(description="Full URL of the source")
+    title: str = Field(description="Title of the source webpage, article, or document")
+    url: str = Field(description="Full URL or document reference of the source")
     published_date: Optional[str] = Field(
         default=None,
         description="Publication date if available from search metadata (never fabricated)",
     )
-    domain: Optional[str] = Field(default=None, description="Domain name extracted from URL")
+    domain: Optional[str] = Field(default=None, description="Domain name or document type")
     snippet: Optional[str] = Field(default=None, description="Relevant extracted snippet")
+    page_number: Optional[int] = Field(default=None, description="Page number for document references")
+    document_id: Optional[str] = Field(default=None, description="Document ID if source is an uploaded document")
 
 
 class ChatRequest(BaseModel):
@@ -24,6 +26,10 @@ class ChatRequest(BaseModel):
         min_length=1,
         max_length=4000,
         description="User message text (1-4000 characters)",
+    )
+    document_ids: Optional[List[str]] = Field(
+        default=None,
+        description="Optional list of uploaded document IDs to associate with this turn or conversation.",
     )
 
     @field_validator("message")

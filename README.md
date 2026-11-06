@@ -1,70 +1,93 @@
-# Agentic AI Chatbot with Intelligent Web Search
+# ChautiBot 2.0 — Agentic AI Chatbot with Document Analysis, Code Assistant & Web Search
 
-A full-stack, production-grade conversational AI assistant inspired by **ChatGPT** and **Gemini**. The application features an intelligent **LangGraph** agent workflow that dynamically decides whether to answer questions directly or perform real-time web searches using **Tavily**, synthesizing evidence-grounded responses using **Groq** (Llama 3.3 70B), backed by **FastAPI** authentication and persistent conversation history stored in **MongoDB**.
+A full-stack, production-grade conversational AI assistant inspired by **ChatGPT** and **Gemini**. The application features an intelligent multi-modal **LangGraph** agent workflow that dynamically classifies user intent into **General Chat**, **Web Search** (via Tavily), **Document Analysis** (RAG via PyMuPDF + FastEmbed + FAISS), or **Code Assistance** (explaining, debugging, complexity analysis, and generating code for 9+ programming languages), backed by **FastAPI** JWT authentication and persistent storage in **MongoDB**.
 
 ---
 
 ## 🌟 Key Features
 
-- **ChatGPT & Gemini-Inspired User Interface**:
-  - Polished, responsive dark theme crafted with **React 18**, **Vite 6**, and **Tailwind CSS 3** (pure JavaScript JSX, no TypeScript).
-  - Progressive Server-Sent Events (SSE) streaming for real-time token delivery with a blinking cursor.
-  - Live agent status badges (`Thinking...`, `Searching web with Tavily...`, `Generating grounded answer...`).
-  - Full GitHub-flavored Markdown rendering (tables, checklists, blockquotes) with code syntax cards and one-click copy.
-  - Interactive Tavily citation source cards with domain badge, clickable links, and extracted snippets.
-  - Searchable conversation history sidebar categorized into *Today*, *Yesterday*, *Previous 7 Days*, and *Older*.
-  - Inline conversation renaming and modal deletion confirmation.
-  - Auto-generated conversation titles based on the initial user message.
-- **Agentic AI Workflow (LangGraph)**:
+- **Document Analysis & Local RAG (New in 2.0)**:
+  - Upload documents directly via the message composer paperclip button or drag-and-drop.
+  - Supported formats: **PDF (`.pdf`)**, **Plain Text (`.txt`)**, and **Markdown (`.md`)**.
+  - High-performance text extraction using **PyMuPDF** preserving page numbers and source metadata.
+  - Overlapping sliding-window chunking (750 chars, 120 overlap).
+  - High-efficiency local embeddings powered by **FastEmbed** (`BAAI/bge-small-en-v1.5`, 384 dimensions) with deterministic fallback.
+  - Per-user isolated **FAISS** vector indexing for fast semantic retrieval without leaking data between accounts.
+  - Grounded answer synthesis citing verified page numbers and chunk metadata.
+  - Supported queries: summaries, section breakdown, concept explanation, key date/figure extraction, cross-document comparison, and follow-up Q&A.
+
+- **Dedicated Code Assistant (New in 2.0)**:
+  - Paste code directly or upload source files in **Python, C, C++, Java, JavaScript, TypeScript, HTML, CSS, SQL**.
+  - Automatic language detection from file extensions and code structure heuristics.
+  - Dedicated code reasoning node providing:
+    - **Code Explanation**: execution flow, function & class breakdown, library idioms.
+    - **Debugging & Error Diagnosis**: syntax & logic error identification with concrete fixes.
+    - **Optimization & Best Practices**: time/space complexity analysis, edge case identification, refactored snippets.
+    - **Code Generation & Test Suites**: idiomatic implementations with comprehensive test cases.
+  - Indentation-preserving syntax-highlighted code blocks with one-click copy.
+  - Strict security guarantee: user-provided code is never executed on the host system.
+
+- **Intelligent Request Routing (LangGraph)**:
   - Bounded multi-turn conversational memory extracted chronologically from MongoDB.
-  - Autonomous routing decisions:
-    - **`direct_answer`**: General knowledge, coding, explanations, creative writing, mathematics without unnecessary web calls.
-    - **`web_search`**: Current events, breaking news, live factual queries, or explicit search requests.
-  - Real-time Tavily search integration with source normalization and date attribution.
-  - Grounded answer synthesis via Groq-hosted LLM (`llama-3.3-70b-versatile`).
+  - Autonomous intent router routing each request into:
+    - **`GENERAL_CHAT`**: Foundational knowledge, creative writing, conceptual discussions.
+    - **`WEB_SEARCH`**: Breaking news, current factual queries, real-time web verification via Tavily.
+    - **`DOCUMENT_ANALYSIS`**: Questions grounded in uploaded PDF, TXT, or MD documents.
+    - **`CODE_ASSISTANCE`**: Code explanations, debugging, optimization, or complexity analysis.
+
+- **ChatGPT & Gemini-Inspired User Interface**:
+  - Polished dark theme crafted with **React 18**, **Vite 6**, and **Tailwind CSS 3** (pure JavaScript JSX).
+  - Multi-part message composer with paperclip file attachment, drag-and-drop overlay, upload progress bar, and removal button.
+  - Progressive Server-Sent Events (SSE) streaming with live status indicators (`Thinking...`, `Searching web...`, `Analyzing document...`, `Inspecting code...`).
+  - GitHub-flavored Markdown rendering with syntax highlighting and source cards (web links and document page citations).
+  - Searchable conversation history sidebar categorized chronologically.
+
 - **Native FastAPI & MongoDB Authentication**:
-  - Secure user registration and login with email normalization and client/server validation.
-  - Cryptographic password hashing using PBKDF2-HMAC-SHA256 (100,000 iterations, random salt) with constant-time comparison.
+  - User registration and login with email normalization and client/server validation.
+  - Cryptographic password hashing using PBKDF2-HMAC-SHA256 (100,000 iterations, random salt).
   - Signed HS256 JWT access tokens injected into API requests via Bearer headers.
-  - Strict ownership enforcement across all conversation and chat endpoints.
-  - No third-party auth lock-in (Supabase/Firebase free).
+  - Strict user ownership enforcement across all conversation, document, and chat endpoints.
 
 ---
 
 ## 🏗️ Architecture & LangGraph Workflow
 
 ```
-[ User Request ]
-       │
-       ▼
-[ FastAPI /api/chat/stream ]
-       │  (Extracts user identity from JWT & loads bounded history from MongoDB)
-       ▼
+[ User Request + Optional Attachment ]
+                 │
+                 ▼
+     [ FastAPI /api/chat/stream ]
+                 │  (Validates JWT, loads history & active document IDs)
+                 ▼
 ┌────────────────────────────────────────────────────────┐
-│               LangGraph Workflow State                 │
+│           LangGraph StateGraph Router                  │
 │                                                        │
-│   [ Reasoning Agent Node (Groq Llama 3.3 70B) ]        │
-│                         │                              │
-│            Does query require live facts?              │
-│            ┌────────────┴────────────┐                 │
-│            ▼                         ▼                 │
-│      [ No Search ]            [ Tool Calls ]           │
-│     (direct_answer)                  │                 │
-│            │                         ▼                 │
-│            │               [ Tavily Web Search ]       │
-│            │                         │                 │
-│            │              (Returns grounded sources)   │
-│            │                         │                 │
-│            └────────────┬────────────┘                 │
-│                         ▼                              │
-│            [ Grounded Answer Synthesis ]               │
-└────────────────────────────────────────────────────────┘
-       │
-       ▼  (Server-Sent Events: meta ➔ status ➔ token ➔ sources ➔ done)
-[ React Frontend UI ]
-       │
-       ▼
-[ MongoDB: Persist user message, assistant response, and sources ]
+│                  [ Router Node ]                       │
+│    (Inspects intent, attachments, code snippets)       │
+│        │               │               │               │
+│        ▼               ▼               ▼               ▼
+│  DOCUMENT_    CODE_          WEB_            GENERAL_  │
+│  ANALYSIS     ASSISTANCE     SEARCH          CHAT      │
+│        │               │               │               │
+│        ▼               │               ▼               │
+│  [ FAISS Local ]       │        [ Tavily Search ]      │
+│  [ Vector RAG  ]       │        [ Web Retrieval ]      │
+│        │               │               │               │
+│        ▼               ▼               ▼               │
+│  [ Document    ] [ Code        ] [ Reasoning Agent   ] │
+│  [ Synthesis   ] [ Assistant   ] [ & Tool Execution  ] │
+│  [ LLM Node    ] [ LLM Node    ] [ LLM Node          ] │
+│        │               │               │               │
+└────────┼───────────────┼───────────────┼───────────────┘
+         └───────────────┼───────────────┘
+                         ▼
+        (Server-Sent Events: meta ➔ status ➔ token ➔ sources ➔ done)
+                         │
+                         ▼
+                [ React Frontend UI ]
+                         │
+                         ▼
+         [ MongoDB: Messages, Sources & Documents ]
 ```
 
 ---
@@ -74,8 +97,10 @@ A full-stack, production-grade conversational AI assistant inspired by **ChatGPT
 | Layer | Technologies |
 |---|---|
 | **Frontend** | React 18, Vite 6, JavaScript (JSX), Tailwind CSS 3, Lucide React, react-markdown, remark-gfm |
-| **Backend** | Python 3.11+, FastAPI, Uvicorn, Pydantic v2 |
-| **Agent / LLM** | LangGraph, LangChain, Groq API (`llama-3.3-70b-versatile`) |
+| **Backend** | Python 3.11+, FastAPI, Uvicorn, Pydantic v2, python-multipart |
+| **Agent / LLM** | LangGraph, LangChain, Groq API (`openai/gpt-oss-120b` / `llama-3.3-70b-versatile`) |
+| **Document Processing & RAG** | PyMuPDF (fitz), FastEmbed (`bge-small-en-v1.5`), FAISS (CPU vector index) |
+| **Code Assistant** | Dedicated AST-aware heuristics & Groq code reasoning node (9+ languages) |
 | **Web Search** | Tavily Search API |
 | **Database** | MongoDB Atlas / Local MongoDB, PyMongo Async, Motor |
 | **Security** | PyJWT, PBKDF2-HMAC-SHA256 password hashing |
@@ -88,33 +113,36 @@ A full-stack, production-grade conversational AI assistant inspired by **ChatGPT
 chatbot/
 ├── backend/
 │   ├── app/
-│   │   ├── agents/            # LangGraph workflow, nodes, tools, prompts, state
+│   │   ├── agents/            # LangGraph workflow, router node, document RAG, code assistant, tools, state
 │   │   ├── api/
-│   │   │   ├── routes/        # auth.py, chat.py, conversations.py, health.py
+│   │   │   ├── routes/        # auth.py, chat.py, conversations.py, documents.py, health.py
 │   │   │   └── router.py      # Unified API router
 │   │   ├── auth/              # security.py (PBKDF2 hashing, JWT access tokens)
 │   │   ├── database/          # mongodb.py, indexes.py
-│   │   ├── models/            # Pydantic schemas (user.py, chat.py, conversation.py)
-│   │   ├── services/          # chat_service.py, conversation_service.py, user_service.py, search_service.py
+│   │   ├── models/            # Pydantic schemas (user.py, chat.py, conversation.py, document.py)
+│   │   ├── services/          # chat_service.py, document_service.py, document_retrieval.py, code_assistant.py, search_service.py
 │   │   ├── utils/             # object_id.py, sse.py
 │   │   ├── config.py          # Pydantic BaseSettings
 │   │   ├── dependencies.py    # get_current_user, get_db
 │   │   └── main.py            # FastAPI ASGI application & CORS
-│   ├── tests/                 # 36 automated unit & integration tests
-│   ├── requirements.txt       # Python dependencies
+│   ├── tests/                 # 131 automated unit, integration & routing tests
+│   ├── requirements.txt       # Python dependencies (including PyMuPDF, FastEmbed, FAISS)
 │   └── .env.example           # Backend environment template
 ├── frontend/
 │   ├── src/
-│   │   ├── api/               # client.js, auth.js, chat.js, conversations.js
-│   │   ├── components/        # chat/, sidebar/, auth/
+│   │   ├── api/               # client.js, auth.js, chat.js, conversations.js, documents.js
+│   │   ├── components/        # chat/ (Composer with upload & drag-drop, SourceCards), sidebar/, auth/
 │   │   ├── context/           # AuthContext.jsx
-│   │   ├── pages/             # AuthPage.jsx, ChatPage.jsx
+│   │   ├── pages/             # AuthPage.jsx, ChatPage.jsx (attachment lifecycle & SSE streaming)
 │   │   ├── App.jsx            # Routing and auth guards
 │   │   └── main.jsx           # Entry point
 │   ├── package.json           # Dependencies and scripts
 │   ├── vite.config.js         # Vite configuration with proxy and chunk splitting
 │   ├── tailwind.config.js     # Dark theme design tokens
 │   └── .env.example           # Frontend environment template
+├── storage/                   # Local filesystem storage (gitignored)
+│   ├── documents/             # Uploaded user files (<user_id>/<doc_id>_<filename>)
+│   └── vectors/               # Isolated FAISS indices & chunk metadata (<user_id>/<doc_id>.faiss)
 └── README.md                  # Complete documentation
 ```
 
@@ -178,7 +206,7 @@ MAX_HISTORY_MESSAGES=10
 #### Run Backend Automated Tests
 ```powershell
 pytest tests -v
-# Output: 36 passed in ~0.7s
+# Output: 131 passed in ~2.5s
 ```
 
 #### Start FastAPI Server
@@ -225,11 +253,19 @@ npm run preview
 | `GET` | `/api/auth/me` | Retrieve profile of the authenticated user |
 | `POST` | `/api/auth/logout` | Terminate user session |
 
+### Documents & Attachments (New in 2.0)
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/documents/upload` | Upload & index PDF, TXT, MD or source code file with multi-part progress |
+| `GET` | `/api/documents` | List authenticated user's uploaded documents |
+| `GET` | `/api/documents/{id}` | Retrieve document metadata, chunk count, and processing status |
+| `DELETE` | `/api/documents/{id}` | Delete document file, FAISS vector index, and MongoDB record |
+
 ### Chat & Streaming
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/chat/stream` | Progressive SSE streaming chat endpoint with LangGraph agent status and token streaming |
-| `POST` | `/api/chat` | Synchronous fallback chat endpoint |
+| `POST` | `/api/chat/stream` | Progressive SSE streaming chat endpoint with LangGraph agent status and token streaming (supports `document_ids`) |
+| `POST` | `/api/chat` | Synchronous fallback chat endpoint (supports `document_ids`) |
 
 ### Conversations
 | Method | Endpoint | Description |
@@ -251,7 +287,13 @@ npm run preview
 ## 🔒 Security Best Practices Implemented
 
 1. **Password Security**: Passwords are never stored in plaintext. They are hashed using PBKDF2-HMAC-SHA256 with 100,000 iterations and a unique cryptographic 128-bit salt per account.
-2. **Access Control**: All conversation and message queries enforce strict `user_id` ownership filtering. Attempting to access another user's conversation ID returns an HTTP 404 or 401.
-3. **No Secrets Exposed**: Frontend `.env` only contains the backend API URL. No database credentials, Groq keys, or Tavily keys are ever sent to client-side code.
-4. **Input Sanitization**: Pydantic v2 validates all incoming bodies with length and format constraints.
-5. **CORS Hardening**: FastAPI is configured with explicit frontend origin whitelists.
+2. **Access Control & Multi-Tenant Isolation**: All conversation, message, and document queries enforce strict `user_id` ownership filtering. Vector indices and raw files are isolated in user-scoped subdirectories (`storage/vectors/<user_id>/` and `storage/documents/<user_id>/`).
+3. **File Upload Hardening**:
+   - Strictly validates extensions (`.pdf`, `.txt`, `.md` and 10 code extensions).
+   - Enforces a 15 MB file size boundary both client-side and server-side.
+   - Inspects binary magic bytes (`%PDF-`) for PDF files to reject disguised or corrupt binaries.
+   - Sanitizes filenames against path-traversal attacks (`os.path.basename` with alphanumeric regex).
+4. **Zero Code Execution**: Uploaded and pasted source code is strictly treated as text for static AST/pattern analysis and LLM reasoning. Code is **never** executed or evaluated in the backend environment.
+5. **No Secrets Exposed**: Frontend `.env` only contains the backend API URL. No database credentials, Groq keys, or Tavily keys are ever sent to client-side code.
+6. **Input Sanitization**: Pydantic v2 validates all incoming bodies with length, format, and type constraints.
+7. **CORS Hardening**: FastAPI is configured with explicit frontend origin whitelists.

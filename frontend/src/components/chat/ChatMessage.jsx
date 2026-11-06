@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Copy, Check, Globe, Loader2, Sparkles } from 'lucide-react';
+import { Copy, Check, Globe, Loader2, Sparkles, FileText, FileCode } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 import { SourceCards } from './SourceCards';
 
@@ -27,8 +27,11 @@ export function ChatMessage({ message, isStreaming = false, streamStatus = null 
     let icon = <Loader2 className="w-3.5 h-3.5 animate-spin text-[#a3a3a3]" />;
 
     if (streamStatus === 'searching') {
-      label = 'Searching the web with Tavily...';
+      label = 'Searching web & document sources...';
       icon = <Globe className="w-3.5 h-3.5 animate-pulse text-[#60a5fa]" />;
+    } else if (streamStatus === 'analyzing') {
+      label = 'Analyzing document & code context...';
+      icon = <Sparkles className="w-3.5 h-3.5 animate-pulse text-emerald-400" />;
     } else if (streamStatus === 'generating') {
       label = 'Generating response...';
       icon = <Sparkles className="w-3.5 h-3.5 animate-pulse text-[#a3a3a3]" />;
@@ -44,9 +47,20 @@ export function ChatMessage({ message, isStreaming = false, streamStatus = null 
 
   // USER MESSAGE: Compact right-aligned bubble container
   if (isUser) {
+    const isCode = message.attachment?.filename && ['.py', '.c', '.cpp', '.h', '.hpp', '.java', '.js', '.jsx', '.ts', '.tsx', '.html', '.css', '.sql'].some(ext => message.attachment.filename.toLowerCase().endsWith(ext));
     return (
       <div className="w-full max-w-[740px] mx-auto px-4 sm:px-6 my-3 flex justify-end">
         <div className="max-w-[85%] sm:max-w-[70%] bg-[#2f2f2f] text-[#ececec] px-[18px] py-3 rounded-[20px] text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+          {message.attachment && (
+            <div className="mb-2 p-2 rounded-xl bg-[#222222] border border-[#3d3d3d] flex items-center gap-2 text-xs">
+              {isCode ? (
+                <FileCode className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              ) : (
+                <FileText className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+              )}
+              <span className="truncate font-medium text-[#ececec]">{message.attachment.filename}</span>
+            </div>
+          )}
           {message.content}
         </div>
       </div>

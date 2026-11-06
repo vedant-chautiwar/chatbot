@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Globe } from 'lucide-react';
+import { ExternalLink, Globe, FileText } from 'lucide-react';
 
 export function SourceCards({ sources }) {
   if (!sources || !Array.isArray(sources) || sources.length === 0) {
@@ -11,7 +11,7 @@ export function SourceCards({ sources }) {
       <div className="flex items-center gap-2 mb-2.5">
         <div className="flex items-center gap-1.5 text-xs font-medium text-[#a3a3a3]">
           <Globe className="w-3.5 h-3.5 text-[#8e8e8e]" />
-          <span>Sources</span>
+          <span>Cited Sources & Documents</span>
         </div>
         <span className="px-1.5 py-0.2 rounded-full bg-[#1c1c1c] border border-[#2e2e2e] text-[#a3a3a3] text-[10px] font-medium">
           {sources.length}
@@ -20,8 +20,56 @@ export function SourceCards({ sources }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {sources.map((source, index) => {
-          const domain = source.domain || (source.url ? new URL(source.url).hostname.replace('www.', '') : 'source');
+          const isDoc = Boolean(source.document_id || source.page_number || (source.url && source.url.startsWith('#')));
+
+          let domain = source.domain || 'source';
+          if (!isDoc && source.url && !source.domain) {
+            try {
+              domain = new URL(source.url).hostname.replace('www.', '');
+            } catch {
+              domain = 'web';
+            }
+          }
+
           const title = source.title || domain;
+
+          if (isDoc) {
+            return (
+              <div
+                key={source.url || index}
+                className="flex flex-col justify-between p-2.5 rounded-xl bg-[#141414] border border-[#262626] text-left"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-4 h-4 rounded bg-[#212121] flex items-center justify-center text-[10px] text-[#a3a3a3] flex-shrink-0 font-medium">
+                        {index + 1}
+                      </span>
+                      <span className="text-[11px] font-medium text-blue-400 truncate flex items-center gap-1">
+                        <FileText className="w-3 h-3 flex-shrink-0" />
+                        {domain}
+                      </span>
+                    </div>
+                    {source.page_number && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e293b] text-blue-300 font-mono font-medium flex-shrink-0">
+                        p. {source.page_number}
+                      </span>
+                    )}
+                  </div>
+
+                  <h4 className="text-xs font-medium text-[#d4d4d8] line-clamp-2 leading-snug">
+                    {title}
+                  </h4>
+
+                  {source.snippet && (
+                    <p className="mt-1 text-[11px] text-[#8e8e8e] line-clamp-2 leading-relaxed">
+                      {source.snippet}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          }
 
           return (
             <a
@@ -61,4 +109,3 @@ export function SourceCards({ sources }) {
     </div>
   );
 }
-

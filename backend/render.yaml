@@ -28,3 +28,9 @@ services:
         sync: false
       - key: MAX_HISTORY_MESSAGES
         value: "10"
+      - key: DOCUMENT_STORAGE_DIR
+        value: storage/documents
+      - key: VECTOR_STORAGE_DIR
+        value: storage/vectors
+      - key: MAX_DOCUMENT_SIZE_MB
+        value: "15"

@@ -6,6 +6,7 @@ import { WelcomeScreen } from '../components/chat/WelcomeScreen';
 import { Sidebar } from '../components/sidebar/Sidebar';
 import { fetchConversationDetails } from '../api/conversations';
 import { streamChatMessage } from '../api/chat';
+import { uploadDocument, deleteDocument } from '../api/documents';
 
 const SCROLL_THRESHOLD = 120; // px from bottom to show scroll button
 
@@ -23,6 +24,10 @@ export function ChatPage() {
   const [sidebarRefresh, setSidebarRefresh] = useState(0);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
+  // Document attachment state
+  const [attachment, setAttachment] = useState(null);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -35,7 +40,7 @@ export function ChatPage() {
     setSidebarOpen(!isMobile);
   }, []);
 
-  // Track whether the user manually scrolled up (to avoid forcing scroll during read)
+  // Track whether the user manually scrolled up
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -66,6 +71,7 @@ export function ChatPage() {
     setMessagesError(null);
     setMessages([]);
     setConversationTitle('');
+    setAttachment(null);
     userScrolledUpRef.current = false;
     try {
       const data = await fetchConversationDetails(convId);
@@ -75,17 +81,16 @@ export function ChatPage() {
       setMessagesError(err.message || 'Failed to load conversation.');
     } finally {
       setMessagesLoading(false);
-      // Scroll to bottom after loading
       setTimeout(() => scrollToBottom(true), 100);
     }
   }, [scrollToBottom]);
 
   const handleSelectConversation = useCallback((convId) => {
     if (convId === activeConversationId) return;
-    // Stop any current streaming
     abortControllerRef.current?.abort();
     setIsStreaming(false);
     setStreamStatus(null);
+    setAttachment(null);
     setActiveConversationId(convId);
     loadConversation(convId);
   }, [activeConversationId, loadConversation]);
@@ -98,14 +103,78 @@ export function ChatPage() {
     setMessages([]);
     setConversationTitle('');
     setMessagesError(null);
+    setAttachment(null);
     userScrolledUpRef.current = false;
   }, []);
 
+  // Document attachment handling
+  const handleFileSelect = useCallback(async (file) => {
+    if (!file) return;
+
+    setAttachment({
+      file,
+      filename: file.name,
+      size: file.size,
+      status: 'uploading',
+      progress: 0,
+      id: null,
+    });
+    setIsUploadingAttachment(true);
+    setMessagesError(null);
+
+    try {
+      const res = await uploadDocument({
+        file,
+        conversationId: activeConversationId,
+        onProgress: (pct) => {
+          setAttachment((prev) => (prev ? { ...prev, progress: pct } : null));
+        },
+      });
+
+      setAttachment({
+        file,
+        filename: res.document.filename,
+        size: res.document.file_size,
+        category: res.document.category,
+        status: 'ready',
+        progress: 100,
+        id: res.document.id,
+      });
+    } catch (err) {
+      console.error('Document upload error:', err);
+      setAttachment((prev) => (prev ? { ...prev, status: 'failed', error: err.message } : null));
+      setMessagesError(err.message || 'Failed to upload document.');
+    } finally {
+      setIsUploadingAttachment(false);
+    }
+  }, [activeConversationId]);
+
+  const handleRemoveAttachment = useCallback(async () => {
+    const docId = attachment?.id;
+    setAttachment(null);
+    setIsUploadingAttachment(false);
+    if (docId) {
+      try {
+        await deleteDocument(docId);
+      } catch {
+        // non-blocking
+      }
+    }
+  }, [attachment]);
+
   const handleSendMessage = useCallback(async (overrideMessage) => {
-    const messageText = (overrideMessage || input).trim();
-    if (!messageText || isStreaming || isLoading) return;
+    let messageText = (overrideMessage || input).trim();
+    const currentAtt = attachment;
+
+    // If message text is blank but an attachment is attached, provide intuitive default prompt
+    if (!messageText && currentAtt && currentAtt.status === 'ready') {
+      messageText = `Please analyze and summarize the attached file (${currentAtt.filename}).`;
+    }
+
+    if (!messageText || isStreaming || isLoading || isUploadingAttachment) return;
 
     setInput('');
+    setAttachment(null);
     setMessagesError(null);
     userScrolledUpRef.current = false;
 
@@ -115,6 +184,7 @@ export function ChatPage() {
       id: tempUserMsgId,
       role: 'user',
       content: messageText,
+      attachment: currentAtt && currentAtt.status === 'ready' ? { filename: currentAtt.filename, size: currentAtt.size } : null,
       sources: [],
       created_at: new Date().toISOString(),
     };
@@ -138,19 +208,19 @@ export function ChatPage() {
     setIsLoading(true);
     setStreamStatus('thinking');
 
-    // Create an AbortController to allow cancellation
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     let resolvedConversationId = activeConversationId;
+    const documentIds = currentAtt && currentAtt.id ? [currentAtt.id] : null;
 
     try {
       await streamChatMessage({
         conversationId: activeConversationId,
         message: messageText,
+        documentIds: documentIds,
         signal: controller.signal,
         onMeta: (meta) => {
-          // Backend confirmed conversation ID (may be new)
           if (meta.conversation_id && meta.conversation_id !== activeConversationId) {
             resolvedConversationId = meta.conversation_id;
             setActiveConversationId(meta.conversation_id);
@@ -183,7 +253,6 @@ export function ChatPage() {
           );
         },
         onDone: (data) => {
-          // Finalize the streaming message
           setMessages((prev) =>
             prev.map((m) =>
               m.id === streamingMessageIdRef.current
@@ -194,7 +263,6 @@ export function ChatPage() {
           setIsStreaming(false);
           setIsLoading(false);
           setStreamStatus(null);
-          // Trigger sidebar refresh to show new / updated conversation
           setSidebarRefresh((n) => n + 1);
           scrollToBottom(true);
         },
@@ -203,7 +271,6 @@ export function ChatPage() {
           setMessages((prev) => {
             const streamMsg = prev.find((m) => m.id === streamingMessageIdRef.current);
             if (!streamMsg || !streamMsg.content) {
-              // Remove empty error placeholder without content
               return prev.filter((m) => m.id !== streamingMessageIdRef.current);
             }
             return prev.map((m) =>
@@ -220,7 +287,6 @@ export function ChatPage() {
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-        // Streaming was intentionally aborted by user
         setIsStreaming(false);
         setIsLoading(false);
         setStreamStatus(null);
@@ -229,7 +295,6 @@ export function ChatPage() {
       }
       console.error('Streaming error:', err);
       setMessagesError(err.message || 'Failed to send message. Please try again.');
-      // Remove empty streaming placeholder
       setMessages((prev) => {
         const streamMsg = prev.find((m) => m.id === streamingMessageIdRef.current);
         if (streamMsg && !streamMsg.content) {
@@ -237,13 +302,12 @@ export function ChatPage() {
         }
         return prev;
       });
-      // Put the draft message back in the composer
       setInput(messageText);
       setIsStreaming(false);
       setIsLoading(false);
       setStreamStatus(null);
     }
-  }, [input, isStreaming, isLoading, activeConversationId, scrollToBottom]);
+  }, [input, isStreaming, isLoading, isUploadingAttachment, attachment, activeConversationId, scrollToBottom]);
 
   const handleStopStreaming = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -276,7 +340,6 @@ export function ChatPage() {
         {/* Top Header */}
         <header className="flex-shrink-0 flex items-center justify-between px-3 sm:px-4 py-2.5 bg-black z-10 min-h-[48px]">
           <div className="flex items-center gap-2 min-w-0">
-            {/* Sidebar toggle button (visible when sidebar is closed) */}
             {!sidebarOpen && (
               <button
                 type="button"
@@ -288,7 +351,6 @@ export function ChatPage() {
               </button>
             )}
 
-            {/* Quick new chat when sidebar is closed */}
             {!sidebarOpen && (
               <button
                 type="button"
@@ -300,7 +362,6 @@ export function ChatPage() {
               </button>
             )}
 
-            {/* App branding or Conversation Title */}
             <div className="flex items-center gap-2 min-w-0 ml-0.5">
               {!sidebarOpen && (
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -319,7 +380,6 @@ export function ChatPage() {
             </div>
           </div>
 
-          {/* Right Header Action */}
           <div className="flex items-center gap-1">
             {sidebarOpen && (
               <button
@@ -384,7 +444,7 @@ export function ChatPage() {
           )}
         </div>
 
-        {/* Scroll down floating button (matching Screenshot 2) */}
+        {/* Scroll down floating button */}
         {showScrollBottom && hasMessages && (
           <button
             type="button"
@@ -422,10 +482,13 @@ export function ChatPage() {
             onStopStreaming={handleStopStreaming}
             isStreaming={isStreaming}
             isLoading={isLoading && !isStreaming}
+            attachment={attachment}
+            onFileSelect={handleFileSelect}
+            onRemoveAttachment={handleRemoveAttachment}
+            isUploading={isUploadingAttachment}
           />
         </div>
       </div>
     </div>
   );
 }
-

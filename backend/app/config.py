@@ -77,6 +77,20 @@ class Settings(BaseSettings):
         description="Bounded conversation history messages to pass to the agent",
     )
 
+    # Document & Vector Storage Settings
+    DOCUMENT_STORAGE_DIR: str = Field(
+        default="storage/documents",
+        description="Directory for uploaded document and code files",
+    )
+    VECTOR_STORAGE_DIR: str = Field(
+        default="storage/vectors",
+        description="Directory for local FAISS vector indices",
+    )
+    MAX_DOCUMENT_SIZE_MB: int = Field(
+        default=15,
+        description="Maximum upload document size in MB",
+    )
+
     @property
     def cors_origins(self) -> List[str]:
         """Parse comma-separated origins into a list of cleaned strings."""

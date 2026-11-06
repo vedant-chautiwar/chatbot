@@ -56,6 +56,38 @@ class ChatService:
         conv = await self.conv_service.create_conversation(user_id=user_id)
         return conv, True
 
+    async def _resolve_active_document_ids(
+        self,
+        user_id: str,
+        conversation_oid: ObjectId,
+        explicit_document_ids: Optional[List[str]],
+    ) -> List[str]:
+        """Resolve active document IDs for RAG and associate explicit IDs with conversation."""
+        if explicit_document_ids:
+            # Associate newly uploaded documents with this conversation
+            valid_oids = [
+                ObjectId(d) for d in explicit_document_ids if ObjectId.is_valid(d)
+            ]
+            if valid_oids:
+                try:
+                    await self.conv_service.db.documents.update_many(
+                        {"_id": {"$in": valid_oids}, "user_id": user_id},
+                        {"$set": {"conversation_id": conversation_oid}},
+                    )
+                except Exception as exc:
+                    logger.warning("Could not associate documents with conversation: %s", exc)
+            return explicit_document_ids
+
+        # Otherwise check if this conversation already has attached documents
+        try:
+            cursor = self.conv_service.db.documents.find(
+                {"conversation_id": conversation_oid, "user_id": user_id}
+            )
+            docs = await cursor.to_list(length=10)
+            return [str(d["_id"]) for d in docs]
+        except Exception:
+            return []
+
     async def _load_bounded_history(
         self,
         conversation_oid: ObjectId,
@@ -63,8 +95,7 @@ class ChatService:
     ) -> List[BaseMessage]:
         """
         Load bounded conversation history in chronological order.
-        Only user and assistant dialog messages are extracted to prevent
-        orphaned tool calls across multi-turn sessions.
+        Only user and assistant dialog messages are extracted.
         """
         cursor = (
             self.conv_service.db.messages.find({"conversation_id": conversation_oid})
@@ -72,7 +103,7 @@ class ChatService:
             .limit(limit)
         )
         recent_docs = await cursor.to_list(length=limit)
-        recent_docs.reverse()  # Chronological order
+        recent_docs.reverse()
 
         history: List[BaseMessage] = []
         for doc in recent_docs:
@@ -89,11 +120,19 @@ class ChatService:
         conversation_id: Optional[str],
         message: str,
         user_id: str,
+        document_ids: Optional[List[str]] = None,
     ) -> ChatResponse:
-        """Process chat message synchronously using the LangGraph agent."""
+        """Process chat message synchronously using the unified LangGraph agent."""
         conv, is_new = await self._resolve_conversation(conversation_id, user_id, message)
         conv_oid: ObjectId = conv["_id"]
         conv_id_str = str(conv_oid)
+
+        # Resolve active documents for this conversation
+        active_doc_ids = await self._resolve_active_document_ids(
+            user_id=user_id,
+            conversation_oid=conv_oid,
+            explicit_document_ids=document_ids,
+        )
 
         # Persist user message immediately
         await self.conv_service.append_message(
@@ -121,13 +160,16 @@ class ChatService:
             "messages": history,
             "sources": [],
             "status": "thinking",
+            "uploaded_document_ids": active_doc_ids,
+            "user_id": user_id,
         }
 
         logger.info(
-            "Invoking LangGraph agent for user %s, conv %s with %d history messages",
+            "Invoking LangGraph agent for user %s, conv %s with %d history messages (doc_ids: %s)",
             user_id,
             conv_id_str,
             len(history),
+            active_doc_ids,
         )
 
         try:
@@ -194,6 +236,7 @@ class ChatService:
         conversation_id: Optional[str],
         message: str,
         user_id: str,
+        document_ids: Optional[List[str]] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Execute agent with progressive Server-Sent Events (SSE).
@@ -201,7 +244,7 @@ class ChatService:
         - meta: IDs of conversation and upcoming assistant message
         - status: activity changes ('thinking', 'searching', 'generating')
         - token: streamed text delta
-        - sources: validated sources retrieved
+        - sources: validated sources retrieved (web or document)
         - done: completion payload
         - error: user-safe error payload
         """
@@ -218,6 +261,14 @@ class ChatService:
         conv_id_str = str(conv_oid)
         assistant_oid = ObjectId()
         assistant_id_str = str(assistant_oid)
+
+        # Resolve active documents for this conversation
+        active_doc_ids = await self._resolve_active_document_ids(
+            user_id=user_id,
+            conversation_oid=conv_oid,
+            explicit_document_ids=document_ids,
+        )
+
         # Persist user message and update metadata
         try:
             await self.conv_service.append_message(
@@ -254,6 +305,8 @@ class ChatService:
             "messages": history,
             "sources": [],
             "status": "thinking",
+            "uploaded_document_ids": active_doc_ids,
+            "user_id": user_id,
         }
 
         # Emit initial thinking status
@@ -272,16 +325,21 @@ class ChatService:
                 event_type = event.get("event")
                 event_name = event.get("name", "")
 
-                # Tool lifecycle events
+                # Node & Tool lifecycle events
                 if event_type == "on_tool_start":
                     yield format_sse("status", {"status": "searching"})
 
                 elif event_type == "on_tool_end":
                     yield format_sse("status", {"status": "generating"})
                     output = event.get("data", {}).get("output")
-                    # If tool produced sources, collect them
                     if isinstance(output, dict) and "sources" in output:
                         collected_sources.extend(output["sources"])
+
+                elif event_type == "on_chain_start":
+                    if event_name == "document_retrieval":
+                        yield format_sse("status", {"status": "searching"})
+                    elif event_name in ("code_assistant", "document_generate"):
+                        yield format_sse("status", {"status": "generating"})
 
                 # LLM streaming tokens
                 elif event_type == "on_chat_model_stream":
@@ -292,8 +350,8 @@ class ChatService:
                             accumulated_text.append(text_chunk)
                             yield format_sse("token", {"token": text_chunk})
 
-                # Node completion events
-                elif event_type == "on_chain_end" and event_name == "tools":
+                # Node completion events capturing sources
+                elif event_type == "on_chain_end" and event_name in ("tools", "document_retrieval"):
                     node_output = event.get("data", {}).get("output", {})
                     if isinstance(node_output, dict) and "sources" in node_output:
                         for s in node_output["sources"]:
@@ -302,7 +360,6 @@ class ChatService:
 
         except asyncio.CancelledError:
             logger.warning("Streaming request was cancelled by client: conv %s", conv_id_str)
-            # If client disconnected mid-generation, persist partial or note
             full_text = "".join(accumulated_text).strip()
             if full_text:
                 await self.conv_service.append_message(
@@ -324,7 +381,6 @@ class ChatService:
 
         # If a fallback non-streaming output exists (e.g. mock graph in tests)
         if not final_answer:
-            # Run one non-streaming invoke if stream emitted no tokens
             try:
                 res = await self.graph.ainvoke(initial_state)
                 msgs = res.get("messages", [])
@@ -337,13 +393,13 @@ class ChatService:
 
         # Deduplicate sources
         unique_sources: List[Dict[str, Any]] = []
-        seen_urls = set()
+        seen_keys = set()
         for s in collected_sources:
-            u = s.get("url")
-            if not u or u not in seen_urls:
+            k = s.get("url") or s.get("title")
+            if not k or k not in seen_keys:
                 unique_sources.append(s)
-                if u:
-                    seen_urls.add(u)
+                if k:
+                    seen_keys.add(k)
 
         # Emit sources event
         yield format_sse("sources", {"sources": unique_sources})

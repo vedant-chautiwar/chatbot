@@ -23,6 +23,7 @@ async def send_chat_message(
         conversation_id=payload.conversation_id,
         message=payload.message,
         user_id=current_user.user_id,
+        document_ids=payload.document_ids,
     )
 
 
@@ -50,6 +51,7 @@ async def send_chat_message_stream(
         conversation_id=payload.conversation_id,
         message=payload.message,
         user_id=current_user.user_id,
+        document_ids=payload.document_ids,
     )
 
     return StreamingResponse(

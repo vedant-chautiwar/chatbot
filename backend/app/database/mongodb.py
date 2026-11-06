@@ -78,6 +78,13 @@ class MongoDBManager:
             raise RuntimeError("Database not initialized. Please check MongoDB connection.")
         return self.db["messages"]
 
+    @property
+    def documents(self) -> AsyncCollection:
+        """Access 'documents' collection."""
+        if self.db is None:
+            raise RuntimeError("Database not initialized. Please check MongoDB connection.")
+        return self.db["documents"]
+
 
 # Global database manager instance
 mongodb_manager = MongoDBManager()

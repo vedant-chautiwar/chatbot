@@ -57,3 +57,9 @@ dist-ssr/
 *.local
 frontend/.env
 frontend/.env.*.local
+
+# Document & Vector Storage (Local uploads & FAISS)
+storage/
+backend/storage/
+*.faiss
+*_chunks.json

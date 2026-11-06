@@ -1,31 +1,31 @@
 import React from 'react';
-import { Sparkles, Compass, Lightbulb, Code2 } from 'lucide-react';
+import { Sparkles, Compass, FileText, Code2, Bug } from 'lucide-react';
 
 export function WelcomeScreen({ onSelectPrompt }) {
   const suggestions = [
     {
-      title: 'Explain a complex concept simply',
-      description: 'How does transformer self-attention work?',
-      icon: Lightbulb,
-      prompt: 'Explain how transformer self-attention works in simple, intuitive terms with a clear analogy.',
+      title: 'Analyze or summarize a document',
+      description: 'Upload a PDF, TXT, or Markdown file to extract key points or ask questions.',
+      icon: FileText,
+      prompt: 'Can you summarize the main findings and key points from my attached document?',
+    },
+    {
+      title: 'Explain a code snippet or algorithm',
+      description: 'Break down execution flow, classes, or unfamiliar libraries simply.',
+      icon: Code2,
+      prompt: 'Explain how this code works step-by-step, including its time and space complexity:\n\n```python\ndef binary_search(arr, target):\n    low, high = 0, len(arr) - 1\n    while low <= high:\n        mid = (low + high) // 2\n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    return -1\n```',
+    },
+    {
+      title: 'Debug and improve code',
+      description: 'Identify syntax/logical bugs, edge cases, and performance bottlenecks.',
+      icon: Bug,
+      prompt: 'Find the logical bug and edge case flaws in this function and suggest an optimized fix:\n\n```python\ndef get_average_scores(student_records):\n    averages = {}\n    for student, scores in student_records.items():\n        averages[student] = sum(scores) / len(scores)\n    return averages\n```',
     },
     {
       title: 'Explore the latest AI developments',
-      description: 'What are the latest breakthrough releases?',
+      description: 'Search live news, breakthrough model releases, and benchmarks.',
       icon: Compass,
       prompt: 'What are the latest breakthrough releases and major updates in AI?',
-    },
-    {
-      title: 'Compare two technologies',
-      description: 'FastAPI vs Express.js for modern APIs',
-      icon: Sparkles,
-      prompt: 'Compare FastAPI vs Express.js for modern APIs. What are the key architectural differences and trade-offs?',
-    },
-    {
-      title: 'Help debug a piece of code',
-      description: 'Find issues in async Python or React hooks',
-      icon: Code2,
-      prompt: 'Help debug a piece of code: what are common issues and subtle bugs in async Python or React hooks?',
     },
   ];
 
@@ -41,8 +41,8 @@ export function WelcomeScreen({ onSelectPrompt }) {
           Where should we start?
         </h1>
 
-        <p className="text-[14px] text-[#a3a3a3] max-w-[440px] mb-9 leading-relaxed">
-          Ask anything — I can answer from foundational knowledge or search the web in real-time when needed.
+        <p className="text-[14px] text-[#a3a3a3] max-w-[480px] mb-9 leading-relaxed">
+          Ask anything, paste code, or attach documents — powered by live web search, RAG document analysis, and an expert code assistant.
         </p>
 
         {/* Suggested prompt cards: 2-column grid */}

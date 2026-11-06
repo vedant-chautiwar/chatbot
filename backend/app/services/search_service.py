@@ -67,7 +67,7 @@ class SearchService:
             if any(kw in clean_query.lower() for kw in news_keywords):
                 effective_topic = "news"
 
-        if self._client is None or getattr(self._client, "api_key", None) != effective_key:
+        if self._client is None:
             self._client = AsyncTavilyClient(api_key=effective_key)
 
         search_kwargs: dict = {

@@ -121,6 +121,13 @@ class MockCollection:
         await self.update_one(query, update)
         return await self.find_one(query)
 
+    async def update_many(self, query: Dict[str, Any], update: Dict[str, Any]) -> None:
+        for doc in self.docs.values():
+            if self._matches(doc, query):
+                if "$set" in update:
+                    for k, v in update["$set"].items():
+                        doc[k] = copy.deepcopy(v)
+
     async def delete_one(self, query: Dict[str, Any]) -> MockDeleteResult:
         for oid, doc in list(self.docs.items()):
             if self._matches(doc, query):
@@ -148,6 +155,7 @@ class MockMongoDBManager:
             "users": MockCollection("users"),
             "conversations": MockCollection("conversations"),
             "messages": MockCollection("messages"),
+            "documents": MockCollection("documents"),
         }
         self.db = self
 
@@ -167,6 +175,10 @@ class MockMongoDBManager:
     @property
     def messages(self) -> MockCollection:
         return self["messages"]
+
+    @property
+    def documents(self) -> MockCollection:
+        return self["documents"]
 
     async def ping(self) -> bool:
         return True

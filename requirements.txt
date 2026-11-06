@@ -32,3 +32,9 @@ python-dotenv==1.2.4
 # Testing
 pytest==9.1.1
 pytest-asyncio==1.4.0
+
+# Document Analysis & Vector RAG
+python-multipart>=0.0.12
+pymupdf>=1.24.0
+faiss-cpu>=1.8.0
+fastembed>=0.3.0

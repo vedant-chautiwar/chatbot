@@ -10,12 +10,13 @@ import { API_BASE_URL, getAuthToken, apiRequest, ApiError } from './client';
  * @param {string|null} [payload.conversationId=null]
  * @param {string} payload.message
  */
-export async function sendChatMessageSync({ conversationId = null, message }) {
+export async function sendChatMessageSync({ conversationId = null, message, documentIds = null }) {
   return await apiRequest('/chat', {
     method: 'POST',
     body: JSON.stringify({
       conversation_id: conversationId,
       message,
+      document_ids: documentIds,
     }),
   });
 }
@@ -26,6 +27,7 @@ export async function sendChatMessageSync({ conversationId = null, message }) {
  * @param {Object} params
  * @param {string|null} [params.conversationId=null]
  * @param {string} params.message
+ * @param {Array<string>|null} [params.documentIds=null] Optional uploaded document IDs
  * @param {function} [params.onMeta] Callback for { conversation_id, assistant_message_id }
  * @param {function} [params.onStatus] Callback for { status: 'thinking'|'searching'|'generating' }
  * @param {function} [params.onToken] Callback for token string delta
@@ -37,6 +39,7 @@ export async function sendChatMessageSync({ conversationId = null, message }) {
 export async function streamChatMessage({
   conversationId = null,
   message,
+  documentIds = null,
   onMeta,
   onStatus,
   onToken,
@@ -63,6 +66,7 @@ export async function streamChatMessage({
     body: JSON.stringify({
       conversation_id: conversationId,
       message,
+      document_ids: documentIds,
     }),
     signal,
   });
